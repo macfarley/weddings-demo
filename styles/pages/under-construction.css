@@ -1,0 +1,57 @@
+/* Under Construction page styles */
+
+.underconstruction-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background-color: #f3f4f6;
+  padding: 2rem;
+}
+
+.underconstruction-title {
+  font-size: 2.25rem;
+  font-weight: bold;
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.underconstruction-image {
+  max-width: 20rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  margin-bottom: 1.5rem;
+}
+
+.underconstruction-couple-name {
+  font-size: 1.125rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.underconstruction-date {
+  font-size: 1rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.underconstruction-credit {
+  margin-top: 2rem;
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+@media (max-width: 768px) {
+  .underconstruction-container {
+    padding: 1rem;
+  }
+
+  .underconstruction-title {
+    font-size: 1.875rem;
+  }
+
+  .underconstruction-image {
+    max-width: 100%;
+  }
+}

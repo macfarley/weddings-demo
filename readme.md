@@ -6,17 +6,15 @@ Here’s a clean, polished **starter README** you can drop straight into your de
 
 # **README.md**
 
-# John & Crystal Wedding Demo  
-A custom wedding‑site demo built for the first Sites by Mac client. This project showcases the core features offered to couples: a beautiful, mobile‑friendly wedding website with guest photo uploads, a digital guestbook, and an easy QR‑code workflow for reception use.
-
-This demo will be presented during the initial consultation.
+# John & Crystal's Wedding Website
+A custom wedding site for John Michael May Jr. and Crystal Lynn Collins, getting married May 9, 2026 at the Junior Fair Building in Wapakoneta, Ohio. This project showcases the core features offered to couples: a beautiful, mobile‑friendly wedding website with guest photo uploads, a digital guestbook, and an easy QR‑code workflow for reception use.
 
 ---
 
 ## 🌿 **Tech Stack**
 - **Next.js** (static pages + API routes)  
 - **TypeScript**  
-- **TailwindCSS**  
+- **Chakra UI** for component styling    
 - **Supabase** (photo storage, moderation workflow)  
 - **Vercel** (hosting + deployment)
 
@@ -27,9 +25,9 @@ This stack is chosen for speed, reliability, and easy re‑theming for future cl
 ## 💍 **Core Features**
 ### **1. Welcome Page**
 - Hero image (stock placeholder)
-- Couple names: *John & Crystal May‑Collins*
-- Wedding date (placeholder)
-- Short intro paragraph
+- Couple names: *John Michael May Jr. & Crystal Lynn Collins*
+- Wedding date: **Friday, May 9, 2026**
+- Event details: ceremony at 4:00 PM, reception at 5:30 PM
 
 ### **2. Event Details**
 - Ceremony & reception times  

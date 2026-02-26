@@ -1,0 +1,84 @@
+/* Send Your Photos page styles */
+
+.sendyourphotos-page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+
+.sendyourphotos-card {
+  width: 100%;
+  max-width: 42rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sendyourphotos-card h2 {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+}
+
+.sendyourphotos-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.sendyourphotos-input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #f9fafb;
+  outline: none;
+  transition: all 200ms;
+}
+
+.sendyourphotos-input:focus {
+  outline: 2px solid #ec4899;
+}
+
+.sendyourphotos-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background-color: #be123c;
+  color: white;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 200ms;
+  border: none;
+}
+
+.sendyourphotos-button:hover {
+  background-color: #7c0a2e;
+}
+
+.sendyourphotos-button:focus {
+  outline: 2px solid #ec4899;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .sendyourphotos-page-container {
+    padding: 1rem;
+  }
+
+  .sendyourphotos-card {
+    padding: 1rem;
+  }
+
+  .sendyourphotos-card h2 {
+    font-size: 1.25rem;
+  }
+}

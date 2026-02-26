@@ -1,9 +1,10 @@
-// Registry / Gifts stub
 export default function Registry() {
   return (
     <main>
       <h2>Registry & Gifts</h2>
-      <p>Links coming soon.</p>
+      <p>
+        Registry links are being finalized. Please check back soon for gift details.
+      </p>
     </main>
   );
 }

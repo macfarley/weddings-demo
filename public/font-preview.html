@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Font Preview – May‑Collins Wedding</title>
+  <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Rock+Salt&family=Shrikhand&family=Barlow+Condensed:wght@500;700&family=Russo+One&family=Antonio:wght@600;700&family=Inter:wght@400;600&family=Roboto:wght@400;500&family=Source+Sans+3:wght@400;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #111111;
+      --card-bg: #f8f3e6;
+      --accent: #b64926;
+      --accent-2: #ffd659;
+      --text-dark: #111111;
+      --text-light: #ffffff;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 2rem;
+      background: radial-gradient(circle at top, #2b2b2b 0, #111111 55%, #000000 100%);
+      color: var(--text-light);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    h1, h2, h3 {
+      margin: 0 0 0.5rem;
+    }
+
+    .page-title {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .page-title h1 {
+      font-family: "Barlow Condensed", system-ui, sans-serif;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-size: 2.4rem;
+    }
+
+    .page-title p {
+      margin: 0.25rem 0;
+      opacity: 0.8;
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.5rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .card {
+      background: var(--card-bg);
+      color: var(--text-dark);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-header h2 {
+      font-family: "Barlow Condensed", system-ui, sans-serif;
+      font-size: 1.1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent);
+    }
+
+    .card-header span {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(0, 0, 0, 0.55);
+    }
+
+    .sample-label {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: rgba(0, 0, 0, 0.6);
+      margin-top: 0.75rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .sample-block {
+      padding: 0.6rem 0.75rem;
+      border-radius: 6px;
+      background: rgba(0, 0, 0, 0.03);
+      margin-bottom: 0.5rem;
+    }
+
+    .sample-note {
+      font-size: 0.8rem;
+      color: rgba(0, 0, 0, 0.6);
+      margin-top: 0.25rem;
+    }
+
+    .divider {
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      border-radius: 999px;
+      margin: 2rem auto;
+      max-width: 260px;
+      opacity: 0.9;
+    }
+
+    /* Font-specific classes */
+
+    .h1-permanent-marker {
+      font-family: "Permanent Marker", system-ui, sans-serif;
+      font-size: 2.4rem;
+      line-height: 1.1;
+    }
+
+    .h1-rock-salt {
+      font-family: "Rock Salt", system-ui, sans-serif;
+      font-size: 2rem;
+      line-height: 1.2;
+    }
+
+    .h1-shrikhand {
+      font-family: "Shrikhand", system-ui, sans-serif;
+      font-size: 2.4rem;
+      line-height: 1.1;
+    }
+
+    .h2-barlow-condensed {
+      font-family: "Barlow Condensed", system-ui, sans-serif;
+      font-size: 1.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+    }
+
+    .h2-russo-one {
+      font-family: "Russo One", system-ui, sans-serif;
+      font-size: 1.6rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    .h2-anton {
+      font-family: "Antonio", system-ui, sans-serif;
+      font-size: 1.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .body-inter {
+      font-family: "Inter", system-ui, sans-serif;
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .body-roboto {
+      font-family: "Roboto", system-ui, sans-serif;
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    .body-source-sans {
+      font-family: "Source Sans 3", system-ui, sans-serif;
+      font-size: 0.98rem;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 1.25rem;
+      }
+      .page-title h1 {
+        font-size: 1.8rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header class="page-title">
+    <h1>Font Preview – May‑Collins Wedding</h1>
+    <p>Racing‑adjacent, bootlegger‑heritage, Eldora‑flavored typography options.</p>
+    <p>Use this page on a screen share to pick favorites together.</p>
+  </header>
+
+  <main class="grid">
+
+    <!-- Hand‑Painted / Bootlegger H1 Options -->
+    <section class="card">
+      <div class="card-header">
+        <h2>H1 – Hand‑Painted / Bootlegger</h2>
+        <span>Hero header options</span>
+      </div>
+
+      <div class="sample-label">Permanent Marker</div>
+      <div class="sample-block">
+        <div class="h1-permanent-marker">
+          John &amp; Crystal – May 9, 2026
+        </div>
+        <div class="sample-note">
+          Thick, marker‑style strokes. Feels like a hand‑painted race number or garage sign.
+        </div>
+      </div>
+
+      <div class="sample-label">Rock Salt</div>
+      <div class="sample-block">
+        <div class="h1-rock-salt">
+          John &amp; Crystal – May 9, 2026
+        </div>
+        <div class="sample-note">
+          Rough, scratchy, very hand‑done. Strong “backroad outlaw” energy.
+        </div>
+      </div>
+
+      <div class="sample-label">Shrikhand</div>
+      <div class="sample-block">
+        <div class="h1-shrikhand">
+          John &amp; Crystal – May 9, 2026
+        </div>
+        <div class="sample-note">
+          Bold, chunky, retro. Feels like a vintage fairground or diner sign.
+        </div>
+      </div>
+    </section>
+
+    <!-- Racing / Speed H2–H3 Options -->
+    <section class="card">
+      <div class="card-header">
+        <h2>H2 / H3 – Racing / Speed</h2>
+        <span>Section headings</span>
+      </div>
+
+      <div class="sample-label">Barlow Condensed</div>
+      <div class="sample-block">
+        <div class="h2-barlow-condensed">
+          Lap 1 – Ceremony &amp; Vows
+        </div>
+        <div class="sample-note">
+          Clean, condensed, modern. Great for “Lap” labels and section titles.
+        </div>
+      </div>
+
+      <div class="sample-label">Russo One</div>
+      <div class="sample-block">
+        <div class="h2-russo-one">
+          Lap 2 – Reception &amp; Victory Lane
+        </div>
+        <div class="sample-note">
+          Heavy, industrial, strong. Feels like a race poster or car number stencil.
+        </div>
+      </div>
+
+      <div class="sample-label">Antonio</div>
+      <div class="sample-block">
+        <div class="h2-anton">
+          Lap 3 – Afterparty Under the Lights
+        </div>
+        <div class="sample-note">
+          Tall, bold, and fast‑feeling. Great for big, dramatic headings.
+        </div>
+      </div>
+    </section>
+
+    <!-- Body Text Options -->
+    <section class="card">
+      <div class="card-header">
+        <h2>Body Text – Readable &amp; Modern</h2>
+        <span>Paragraphs &amp; details</span>
+      </div>
+
+      <div class="sample-label">Inter</div>
+      <div class="sample-block body-inter">
+        Guests are invited to celebrate with John and Crystal on Saturday, May 9, 2026 at the
+        Auglaize County Fairgrounds in Wapakoneta, Ohio. Join us for a night of stories, laughter,
+        and a little bit of racing‑spirit mischief.
+      </div>
+
+      <div class="sample-label">Roboto</div>
+      <div class="sample-block body-roboto">
+        Guests are invited to celebrate with John and Crystal on Saturday, May 9, 2026 at the
+        Auglaize County Fairgrounds in Wapakoneta, Ohio. Join us for a night of stories, laughter,
+        and a little bit of racing‑spirit mischief.
+      </div>
+
+      <div class="sample-label">Source Sans 3</div>
+      <div class="sample-block body-source-sans">
+        Guests are invited to celebrate with John and Crystal on Saturday, May 9, 2026 at the
+        Auglaize County Fairgrounds in Wapakoneta, Ohio. Join us for a night of stories, laughter,
+        and a little bit of racing‑spirit mischief.
+      </div>
+    </section>
+
+  </main>
+
+  <div class="divider"></div>
+
+  <footer class="page-title">
+    <p>Tip: Ask “Which header feels most like them?” and “Which body text is easiest to read?”</p>
+  </footer>
+</body>
+</html>

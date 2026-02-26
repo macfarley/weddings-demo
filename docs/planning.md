@@ -1,12 +1,15 @@
-# John & Crystal Wedding Site — Planning Document  
-**Project Type:** Client‑facing demo for Sites by Mac  
-**Tech Stack:** Next.js (static), TypeScript, TailwindCSS, Supabase (storage + functions)  
+# John & Crystal's Wedding Site — Planning Document  
+**Couple:** John Michael May Jr. & Crystal Lynn Collins  
+**Wedding Date:** Friday, May 9, 2026  
+**Venue:** Junior Fair Building (Indoors), 1001 Fairview Drive, Wapakoneta, Ohio  
+**Project Type:** Client‑facing wedding site for Sites by Mac  
+**Tech Stack:** Next.js (static), TypeScript, Chakra UI, Supabase (storage + functions)  
 **Domain Strategy:** 1‑year custom domain → archival under `sitesbymac.dev/weddings/...`  
 
 ---
 
 ## **1. Project Goals**
-- Build a polished, reusable wedding‑site template for Client #1 (John & Crystal May‑Collins).  
+- Build a polished, reusable wedding‑site template for John Michael May Jr. and Crystal Lynn Collins.  
 - Showcase the core differentiator: **guest photo uploads + digital guestbook**, accessible via QR code.  
 - Create a workflow that can be reused for future clients with minimal changes (copy, colors, domain).  
 - Keep costs predictable by offering **1 year of custom domain**, then migrating to a subpath under `sitesbymac.dev`.  
@@ -17,14 +20,15 @@
 ### **2.1 Public Pages**
 - **Home / Welcome**
   - Hero image (stock placeholder)
-  - Couple names: *John & Crystal May‑Collins*
-  - Wedding date (placeholder)
-  - Short intro paragraph
+  - Couple names: *John Michael May Jr. & Crystal Lynn Collins*
+  - Wedding date: **Friday, May 9, 2026**
+  - Ceremony: 4:00 PM | Reception: 5:30 PM
 
 - **Event Details**
+  - Venue: Junior Fair Building (Indoors), 1001 Fairview Drive, Wapakoneta, Ohio
   - Ceremony + reception times
-  - Venue info + embedded map
-  - Parking / accessibility notes
+  - Embedded Google Maps link
+  - Dress code info
 
 - **Photo Upload + Digital Guestbook**
   - Upload form:
@@ -40,7 +44,7 @@
   - Upload → Supabase `pending/` folder
 
 - **Gallery**
-  - Grid layout (Tailwind)
+  - Grid layout (Chakra UI)
   - Lightbox view for full‑size images
   - Displays only approved photos from Supabase `approved/` folder
 
@@ -137,7 +141,7 @@ These are unique enough to be almost certainly available:
 ---
 
 ## **7. Tech Stack Notes**
-### **7.1 Next.js + Tailwind**
+### **7.1 Next.js + Chakra UI**
 - Static export for all public pages
 - Reusable components for:
   - Hero section
@@ -178,7 +182,7 @@ This becomes the foundation for a scalable wedding‑site offering.
 
 ## **9. Next Steps**
 - [ ] Create new Next.js project  
-- [ ] Set up Tailwind  
+- [ ] Set up Chakra UI  
 - [ ] Build page skeletons  
 - [ ] Integrate Supabase client  
 - [ ] Create storage buckets  

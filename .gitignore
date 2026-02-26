@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+out/
+.next/
+.vercel
+
+# Misc
+.DS_Store
+*.local
+.env
+.env.local
+.env.*.local
+
+# Dev logs (gitignored for development only)
+.devlog/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python venv (for Supabase CLI)
+.venv/
+venv/
+
+# misc
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

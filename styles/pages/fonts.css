@@ -1,0 +1,14 @@
+/* Fonts preview page styles */
+
+.fonts-preview-iframe {
+  width: 100vw;
+  height: 100vh;
+  border: none;
+  background: #111;
+}
+
+.fonts-preview-container {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}

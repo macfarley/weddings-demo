@@ -1,0 +1,107 @@
+/* Guestbook page styles */
+
+.guestbook-page-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+}
+
+.guestbook-card {
+  width: 100%;
+  max-width: 42rem;
+  background-color: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.guestbook-card h2 {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  font-family: '"Dancing Script", cursive';
+}
+
+.guestbook-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.guestbook-textarea {
+  width: 100%;
+  height: 8rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #f9fafb;
+  font-size: 1.2em;
+  font-family: '"Dancing Script", cursive';
+  outline: none;
+  transition: all 200ms;
+}
+
+.guestbook-textarea:focus {
+  ring: 2px;
+  ring-color: #ec4899;
+  outline: 2px solid #ec4899;
+}
+
+.guestbook-input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #f9fafb;
+  font-family: '"Dancing Script", cursive';
+  outline: none;
+  transition: all 200ms;
+}
+
+.guestbook-input:focus {
+  outline: 2px solid #ec4899;
+}
+
+.guestbook-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background-color: #be123c;
+  color: white;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  font-family: '"Dancing Script", cursive';
+  cursor: pointer;
+  transition: all 200ms;
+  border: none;
+}
+
+.guestbook-button:hover {
+  background-color: #7c0a2e;
+}
+
+.guestbook-button:focus {
+  outline: 2px solid #ec4899;
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px) {
+  .guestbook-page-container {
+    padding: 1rem;
+  }
+
+  .guestbook-card {
+    padding: 1rem;
+  }
+
+  .guestbook-card h2 {
+    font-size: 1.5rem;
+  }
+}
