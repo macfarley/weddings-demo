@@ -39,6 +39,27 @@ npm run dev
 
 Open `http://localhost:3000`.
 
+## Environment setup
+
+Use the committed example file as your template, then keep real values in your local env file.
+
+```bash
+cp .env.example .env
+```
+
+Fill in these values in `.env`:
+
+- `SUPABASE_PROJECT_REF`
+- `SUPABASE_ACCESS_TOKEN` (for CLI commands)
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
+
+Notes:
+
+- `.env` is gitignored and should never be committed.
+- `.env.example` stays in git with placeholder values only.
+
 ## Deployment
 
 The project is set up for Vercel deployment:
