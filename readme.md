@@ -1,139 +1,68 @@
-You’ve got it — and yes, you can absolutely host a Next.js app on Vercel for free. Their Hobby tier is perfect for this kind of project: static pages, light serverless usage, and low traffic. It’s exactly what Vercel was built for.
+# John & Crystal Wedding Website
 
-Here’s a clean, polished **starter README** you can drop straight into your demo repo. It’s written to impress the couple *and* keep your future‑self organized as you scale this into a reusable wedding‑site template.
+Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Collins.
 
----
+## Current public status
 
-# **README.md**
+- The homepage currently shows an **Under Construction** experience for the custom domain launch.
+- This is intentional while final content and production integrations are being completed.
+- Internal pages and feature scaffolding exist in the repo but are not the public launch experience.
 
-# John & Crystal's Wedding Website
-A custom wedding site for John Michael May Jr. and Crystal Lynn Collins, getting married May 9, 2026 at the Junior Fair Building in Wapakoneta, Ohio. This project showcases the core features offered to couples: a beautiful, mobile‑friendly wedding website with guest photo uploads, a digital guestbook, and an easy QR‑code workflow for reception use.
+## Stack
 
----
+- Next.js (Pages Router + TypeScript)
+- React + Chakra UI
+- CSS modules and page/component CSS
+- Vercel for hosting and deployment
+- Cloudflare for DNS and email routing
+- Supabase integration scaffolding (not fully wired yet)
 
-## 🌿 **Tech Stack**
-- **Next.js** (static pages + API routes)  
-- **TypeScript**  
-- **Chakra UI** for component styling    
-- **Supabase** (photo storage, moderation workflow)  
-- **Vercel** (hosting + deployment)
+## What is implemented now
 
-This stack is chosen for speed, reliability, and easy re‑theming for future clients.
+- Public under-construction landing page
+- Core page scaffolding (about, contact, event details, gallery, upload, etc.)
+- Reusable UI components and palette/theming context
+- Static media assets for mock/demo presentation
 
----
+## In progress
 
-## 💍 **Core Features**
-### **1. Welcome Page**
-- Hero image (stock placeholder)
-- Couple names: *John Michael May Jr. & Crystal Lynn Collins*
-- Wedding date: **Friday, May 9, 2026**
-- Event details: ceremony at 4:00 PM, reception at 5:30 PM
+- Real upload pipeline to Supabase storage
+- Moderation and approval workflow
+- Production-ready API route wiring for moderation actions
 
-### **2. Event Details**
-- Ceremony & reception times  
-- Venue info + embedded map  
-- Parking / accessibility notes  
+## Local development
 
-### **3. Guest Photo Uploads**
-- Upload form with:
-  - Real Name (optional)
-  - “Family Name” / nickname (optional)
-  - Caption
-  - Photo file input  
-- Input sanitization for safety  
-- Uploads stored in Supabase `pending/` folder  
-
-### **4. Digital Guestbook**
-- Captions + names displayed with approved photos  
-- Emojis supported  
-
-### **5. Moderation Workflow**
-- Supabase function sends email notifications for new uploads  
-- Approve/Deny links trigger Next.js API routes  
-- Approved photos move to `approved/` folder  
-- Gallery updates automatically  
-
-### **6. Gallery**
-- Tiled grid layout  
-- Lightbox view for full‑size images  
-- Displays only approved photos  
-
-### **7. QR Code Integration**
-- QR code links directly to the upload page  
-- Designed for:
-  - Reception signage  
-  - Guestbook table  
-  - Printed materials  
-
----
-
-## 🎨 **Color Story Options**
-Three palettes prepared for the couple to choose from (cold‑spring Ohio friendly):
-
-### **1. Dusty Blue + Slate + Cream**
-- `#A8C1D1`, `#6C7A89`, `#F7F4ED`, `#2F3A45`
-
-### **2. Mauve + Rosewood + Champagne**
-- `#C9A9A6`, `#8B5E6A`, `#F7E7CE`, `#B8A39A`
-
-### **3. Sage + Ivory + Gold**
-- `#A3B18A`, `#6B705C`, `#F8F5F0`, `#D4AF37`
-
-These will be used to theme the demo site and help the couple visualize their wedding aesthetic.
-
----
-
-## 🌐 **Domain Strategy**
-To keep costs predictable:
-
-### **Year 1 (Wedding Year)**
-- Couple receives a custom domain (e.g., `john-and-crystal.love`)  
-- Cloudflare Email Routing handles:
-  - `photos@domain`
-  - `uploads@domain`
-
-### **After Year 1**
-Couple chooses:
-1. **Renew the domain themselves**, or  
-2. **Free archival hosting** at:  
-   `sitesbymac.dev/weddings/johnandcrystal`
-
-This keeps the site accessible without ongoing domain costs.
-
----
-
-## 🚀 **Deployment**
-This demo is deployed on **Vercel (Hobby tier)** — free, fast, and ideal for static wedding sites with light serverless usage.
-
----
-
-## 📁 **Project Structure**
-```
-/app
-  /gallery
-  /upload
-  /api
-    approve.ts
-    deny.ts
-/components
-/lib
-/styles
-/supabase
-/public
+```bash
+npm install
+npm run dev
 ```
 
----
+Open `http://localhost:3000`.
 
-## 📅 **Timeline**
-- **Demo ready by:** Friday  
-- **Consultation:** TBD  
-- **Final delivery:** After design approval and content handoff  
+## Deployment
 
----
+The project is set up for Vercel deployment:
 
-## ✨ **Future Enhancements**
-- Admin dashboard for moderation  
-- Theme switcher for rapid re‑branding  
-- Optional RSVP form  
-- Optional registry integration  
-- Optional photographer upload portal  
+- Framework preset: Next.js (auto-detected)
+- Build command: `next build`
+- Start command: `next start`
+
+For custom domain launch through Cloudflare, point DNS for the site hostnames to Vercel and keep Cloudflare email routing records in place.
+
+## Project structure
+
+```text
+pages/
+components/
+context/
+styles/
+public/
+lib/
+docs/
+supabase/
+```
+
+## Notes
+
+- `pages/index.tsx` currently exports the under-construction page for launch safety.
+- Supabase files in `lib/` and `supabase/` are placeholders for the upcoming production integration.
