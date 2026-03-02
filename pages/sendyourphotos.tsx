@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
+import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
 import '../styles/pages/photo-guestbook.css';
 
 // Validate input before submission
@@ -80,7 +81,15 @@ export default function SendYourPhotos() {
   const [fileName, setFileName] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showUnavailableToast, setShowUnavailableToast] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
+
+  const sanitizeLabel = (value: string) =>
+    value
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 60);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -104,7 +113,57 @@ export default function SendYourPhotos() {
     setIsSubmitting(true);
 
     try {
-      setShowUnavailableToast(true);
+      if (!isSupabaseConfigured()) {
+        setErrors(['Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.']);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase || !file) {
+        setErrors(['Supabase client initialization failed. Please verify environment variables.']);
+        return;
+      }
+
+      const weddingSlug = getWeddingSlug();
+      const ext = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : 'jpg';
+      const safeBase = sanitizeLabel(shortCaption.trim()) || 'photo';
+      const uniqueId = crypto.randomUUID();
+      const finalExt = ext || 'jpg';
+      const finalFilename = `${safeBase}-${uniqueId}.${finalExt}`;
+      const storagePath = `uploads/${finalFilename}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('wedding-photos')
+        .upload(storagePath, file, {
+          upsert: false,
+          contentType: file.type || undefined,
+        });
+
+      if (uploadError) {
+        setErrors([uploadError.message || 'Photo upload failed. Please try again.']);
+        return;
+      }
+
+      const uploaderName = `${name.trim()} ${familyName.trim()}`.trim();
+      const { error: metadataError } = await supabase.from('photos').insert({
+        wedding_slug: weddingSlug,
+        storage_path: storagePath,
+        original_filename: file.name,
+        uploader_name: uploaderName,
+        caption: longCaption.trim() || shortCaption.trim(),
+        status: 'pending',
+        is_visible: false,
+      });
+
+      if (metadataError) {
+        await supabase.storage.from('wedding-photos').remove([storagePath]);
+        setErrors([metadataError.message || 'Upload metadata failed to save. Please try again.']);
+        return;
+      }
+
+      setToastMessage('Photo uploaded successfully! It will appear after moderation approval.');
+      setShowToast(true);
+      handleReset();
     } catch (error) {
       console.error('Submission error:', error);
       setErrors(['Failed to submit photo. Please try again.']);
@@ -121,7 +180,6 @@ export default function SendYourPhotos() {
     setFile(null);
     setFileName('');
     setErrors([]);
-    setShowUnavailableToast(false);
   };
 
   return (
@@ -322,7 +380,7 @@ export default function SendYourPhotos() {
                 e.currentTarget.style.opacity = '1';
               }}
             >
-              {isSubmitting ? 'Uploading...' : 'Upload Photo & Message (Coming Soon)'}
+              {isSubmitting ? 'Uploading...' : 'Upload Photo & Message'}
             </button>
             <button
               type="button"
@@ -335,23 +393,12 @@ export default function SendYourPhotos() {
           </div>
         </form>
 
-        {/* Privacy note */}
-        <p
-          style={{
-            marginTop: '1rem',
-            fontSize: '0.8rem',
-            opacity: 0.7,
-            color: palette.text,
-          }}
-        >
-          Upload processing is not live yet. This button currently shows a placeholder notice and does not save files.
-        </p>
       </div>
 
       <FeatureToast
-        isOpen={showUnavailableToast}
-        onClose={() => setShowUnavailableToast(false)}
-        message="This feature is not yet implemented. Photo uploads are coming soon."
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+        message={toastMessage}
       />
     </div>
   );

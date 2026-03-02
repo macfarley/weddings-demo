@@ -53,6 +53,8 @@ Fill in these values in `.env`:
 - `SUPABASE_ACCESS_TOKEN` (for CLI commands)
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- `NEXT_PUBLIC_WEDDING_SLUG` (for multi-site partitioning, defaults to `default`)
+- `NEXT_PUBLIC_WORKER_BASE_URL` (used by `/admin` moderation UI)
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only)
 
 Notes:

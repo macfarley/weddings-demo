@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
+import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
 import '../styles/pages/guestbook-public.css';
 
 interface GuestbookEntry {
@@ -103,14 +104,15 @@ const validateGuestbookEntry = (name: string, familyName: string, message: strin
 
 export default function GuestbookPublic() {
   const { palette } = usePalette();
-  const [entries] = useState<GuestbookEntry[]>(MOCK_ENTRIES);
+  const [entries, setEntries] = useState<GuestbookEntry[]>(MOCK_ENTRIES);
   const [name, setName] = useState('');
   const [familyName, setFamilyName] = useState('');
   const [message, setMessage] = useState('');
   const [selectedSide, setSelectedSide] = useState<'bride' | 'groom'>('bride');
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showUnavailableToast, setShowUnavailableToast] = useState(false);
+  const [showToast, setShowToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +128,45 @@ export default function GuestbookPublic() {
     setIsSubmitting(true);
 
     try {
-      setShowUnavailableToast(true);
+      if (!isSupabaseConfigured()) {
+        setErrors(['Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.']);
+        return;
+      }
+
+      const supabase = getSupabaseBrowserClient();
+      if (!supabase) {
+        setErrors(['Supabase client initialization failed. Please verify environment variables.']);
+        return;
+      }
+
+      const payload = {
+        wedding_slug: getWeddingSlug(),
+        display_name: name.trim(),
+        family_name: familyName.trim(),
+        message: message.trim(),
+      };
+
+      const { error } = await supabase.from('guestbook_entries').insert(payload);
+      if (error) {
+        setErrors([error.message || 'Failed to submit message. Please try again.']);
+        return;
+      }
+
+      setEntries((current) => [
+        {
+          id: crypto.randomUUID(),
+          name: payload.display_name,
+          familyName: payload.family_name,
+          message: payload.message,
+          side: selectedSide,
+          createdAt: new Date().toISOString(),
+        },
+        ...current,
+      ]);
+
+      setToastMessage('Thanks for signing our guestbook! Your message has been saved.');
+      setShowToast(true);
+      handleReset();
     } catch (error) {
       console.error('Submission error:', error);
       setErrors(['Failed to submit message. Please try again.']);
@@ -141,7 +181,6 @@ export default function GuestbookPublic() {
     setMessage('');
     setSelectedSide('bride');
     setErrors([]);
-    setShowUnavailableToast(false);
   };
 
   return (
@@ -405,7 +444,7 @@ export default function GuestbookPublic() {
                 e.currentTarget.style.opacity = '1';
               }}
             >
-              {isSubmitting ? 'Sending...' : 'Sign Guestbook (Coming Soon)'}
+              {isSubmitting ? 'Sending...' : 'Sign Guestbook'}
             </button>
             <button
               type="button"
@@ -418,23 +457,12 @@ export default function GuestbookPublic() {
           </div>
         </form>
 
-        {/* Note about data collection */}
-        <p
-          style={{
-            marginTop: '1rem',
-            fontSize: '0.8rem',
-            opacity: 0.7,
-            color: palette.text,
-          }}
-        >
-          Guestbook submission is not live yet. This button currently shows a placeholder notice and does not save data.
-        </p>
       </div>
 
       <FeatureToast
-        isOpen={showUnavailableToast}
-        onClose={() => setShowUnavailableToast(false)}
-        message="This feature is not yet implemented. Guestbook submissions are coming soon."
+        isOpen={showToast}
+        onClose={() => setShowToast(false)}
+        message={toastMessage}
       />
     </div>
   );

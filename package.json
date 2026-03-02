@@ -15,13 +15,14 @@
     "db:migration:new": "npx --yes supabase@latest migration new"
   },
   "dependencies": {
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest",
     "@chakra-ui/react": "latest",
     "@emotion/react": "latest",
     "@emotion/styled": "latest",
-    "framer-motion": "latest"
+    "@supabase/supabase-js": "^2.98.0",
+    "framer-motion": "latest",
+    "next": "latest",
+    "react": "latest",
+    "react-dom": "latest"
   },
   "devDependencies": {
     "@types/node": "25.2.2",
