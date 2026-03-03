@@ -4,9 +4,9 @@ Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Col
 
 ## Current public status
 
-- The homepage currently shows an **Under Construction** experience for the custom domain launch.
-- This is intentional while final content and production integrations are being completed.
-- Internal pages and feature scaffolding exist in the repo but are not the public launch experience.
+- The full site functionality is now visible from `/` for active style refinement.
+- The legacy `/under-construction` route remains available but is no longer the default homepage.
+- The active color palette is locked to the bride-selected **Petty Shop** scheme during refinement.
 
 ## Stack
 
@@ -20,7 +20,7 @@ Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Col
 
 ## What is implemented now
 
-- Public under-construction landing page
+- Functional public homepage with links into live flows
 - Core page scaffolding (about, contact, event details, gallery, upload, etc.)
 - Reusable UI components and palette/theming context
 - Guestbook submit flow writes to Supabase
@@ -28,6 +28,7 @@ Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Col
 - Public `gallery` reads approved photos from Worker (`GET /photos/approved`)
 - Public `guestbook` reads approved entries from Worker (`GET /guestbook/approved`)
 - Admin moderation UI reads protected Worker routes
+- Palette switching is disabled and locked to `petty-shop`
 
 ## In progress
 
@@ -100,6 +101,6 @@ supabase/
 
 ## Notes
 
-- `pages/index.tsx` currently exports the under-construction page for launch safety.
+- `pages/index.tsx` now serves the functional homepage for style and UX refinement.
 - Public pages fall back to local mock/demo content only when `NEXT_PUBLIC_WORKER_BASE_URL` is unset.
 - Worker should expose public read routes (`GET /photos/approved`, `GET /guestbook/approved`) and protected moderation routes.

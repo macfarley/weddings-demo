@@ -1,5 +1,26 @@
 # Dev Log
 
+## 2026-03-03 (Build Verification + UI Lock)
+
+### Summary
+Ran a full verification sweep and switched the site into full-functionality refinement mode by enabling the root homepage and locking the bride-selected palette.
+
+### Completed Today
+- Verified full quality gate:
+  - `npm --prefix worker run test -- --run`
+  - `npm test -- --runInBand`
+  - `npm run build`
+- Disabled Under Construction as default homepage:
+  - `pages/index.tsx` now renders a functional home hub
+  - `pages/_app.tsx` now hides nav only on `/under-construction`
+- Locked palette to bride-selected `petty-shop`:
+  - disabled runtime palette switching in `context/PaletteContext.tsx`
+  - removed toggle surface from `pages/demo.tsx`
+
+### Notes
+- This state is intended to support rapid visual/style iteration against the final chosen palette.
+- Under-construction route is still available as a fallback page if needed.
+
 ## 2026-03-03
 
 ### Summary

@@ -11,11 +11,12 @@ interface PaletteContextType {
 const PaletteContext = createContext<PaletteContextType | undefined>(undefined);
 
 export function PaletteProvider({ children }: { children: ReactNode }) {
-  const [activePalette, setActivePalette] = useState<PaletteName>('petty-shop');
+  const [activePalette] = useState<PaletteName>('petty-shop');
   const palette = getPalette(activePalette);
+  const setPalette = (_name: PaletteName) => {};
 
   return (
-    <PaletteContext.Provider value={{ activePalette, palette, setPalette: setActivePalette }}>
+    <PaletteContext.Provider value={{ activePalette, palette, setPalette }}>
       {children}
     </PaletteContext.Provider>
   );

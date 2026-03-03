@@ -7,7 +7,7 @@ import '../styles/globals.css';
 
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter();
-  const isInProgressRoute = router.pathname === '/' || router.pathname === '/under-construction';
+  const isInProgressRoute = router.pathname === '/under-construction';
 
   return (
     <ChakraProvider value={system}>
