@@ -84,12 +84,21 @@ export default function SendYourPhotos() {
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
-  const sanitizeLabel = (value: string) =>
-    value
+  const toLabelSlug = (value: string) => {
+    const cleaned = value
       .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
+      .replace(/[^a-z0-9 ]+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+      .replace(/ /g, '-')
       .slice(0, 60);
+
+    if (cleaned) {
+      return cleaned;
+    }
+
+    return `photo-${crypto.randomUUID().slice(0, 8)}`;
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -126,11 +135,11 @@ export default function SendYourPhotos() {
 
       const weddingSlug = getWeddingSlug();
       const ext = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : 'jpg';
-      const safeBase = sanitizeLabel(shortCaption.trim()) || 'photo';
+      const labelRaw = shortCaption.trim();
+      const labelSlug = toLabelSlug(labelRaw);
       const uniqueId = crypto.randomUUID();
       const finalExt = ext || 'jpg';
-      const finalFilename = `${safeBase}-${uniqueId}.${finalExt}`;
-      const storagePath = `uploads/${finalFilename}`;
+      const storagePath = `uploads/${uniqueId}.${finalExt}`;
 
       const { error: uploadError } = await supabase.storage
         .from('wedding-photos')
@@ -148,9 +157,11 @@ export default function SendYourPhotos() {
       const { error: metadataError } = await supabase.from('photos').insert({
         wedding_slug: weddingSlug,
         storage_path: storagePath,
+        label_raw: labelRaw,
+        label_slug: labelSlug,
         original_filename: file.name,
         uploader_name: uploaderName,
-        caption: longCaption.trim() || shortCaption.trim(),
+        caption: longCaption.trim() || labelRaw,
         status: 'pending',
         is_visible: false,
       });

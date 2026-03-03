@@ -1,5 +1,44 @@
 # Dev Log
 
+## 2026-03-03
+
+### Summary
+Completed moderation/public-read wiring for gallery + guestbook, expanded test coverage, and fixed a Vercel deployment blocker caused by TypeScript project boundary bleed-through.
+
+### Completed Today
+- Added public Worker read routes for approved content:
+  - `GET /photos/approved`
+  - `GET /guestbook/approved`
+- Wired public pages to Worker-approved reads:
+  - `pages/gallery.tsx`
+  - `pages/guestbook.tsx`
+- Kept safe local fallback behavior when `NEXT_PUBLIC_WORKER_BASE_URL` is not set.
+- Upgraded admin moderation UI and auth modal flow:
+  - protected Worker route usage
+  - password prompt fallback
+  - three-failure lockout redirect behavior
+- Added photo label model support:
+  - `label_raw` + `label_slug`
+  - migration `supabase/migrations/20260302161500_add_photo_labels.sql`
+- Added/expanded tests:
+  - Worker route tests (`worker/test/index.spec.ts`)
+  - Page tests (`__tests__/pages/*`)
+  - Jest config and setup files
+
+### Deployment Fix
+- Root cause: Vercel Next build attempted to type-check Worker config (`worker/vitest.config.mts`).
+- Fix: harden root `tsconfig.json` boundary so root app excludes Worker project files.
+  - remove broad `**/*.mts` include
+  - exclude `worker` and `worker/**`
+
+### Validation
+- `npm --prefix worker run test -- --run` passes.
+- `npm test -- --runInBand` passes.
+- `npm run build` passes.
+
+### Notes
+- Worker and Next app are intentionally separate TypeScript surfaces and should stay isolated for CI/CD reliability.
+
 ## 2026-02-24
 
 ### Summary

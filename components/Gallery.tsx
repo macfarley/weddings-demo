@@ -2,11 +2,15 @@
 import { useState } from 'react';
 import ImageViewer from './ImageViewer';
 
-interface Photo {
+export interface Photo {
   url: string;
   shortCaption: string;
   longCaption: string;
   uploaderName: string;
+}
+
+interface GalleryProps {
+  photos?: Photo[] | null;
 }
 
 const stockPhotos = [
@@ -45,8 +49,8 @@ const mockPhotos = Array.from({ length: 16 }).map((_, i) => {
   };
 });
 
-export default function Gallery() {
-  const [photos] = useState<Photo[]>(mockPhotos);
+export default function Gallery({ photos = null }: GalleryProps) {
+  const resolvedPhotos = photos ?? mockPhotos;
   const [selectedImage, setSelectedImage] = useState<Photo | null>(null);
   const [isViewerOpen, setIsViewerOpen] = useState(false);
 
@@ -58,7 +62,7 @@ export default function Gallery() {
   return (
     <>
       <div className="gallery-grid">
-        {photos.map((photo, i) => (
+        {resolvedPhotos.map((photo, i) => (
           <figure
             key={i}
             className="gallery-thumbnail"

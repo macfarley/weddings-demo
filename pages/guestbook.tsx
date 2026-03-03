@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
@@ -11,6 +11,35 @@ interface GuestbookEntry {
   message: string;
   side: 'bride' | 'groom';
   createdAt: string;
+}
+
+type WorkerGuestbookEntry = {
+  id: string;
+  display_name?: string | null;
+  family_name?: string | null;
+  message: string;
+  created_at: string;
+  side?: 'bride' | 'groom' | null;
+};
+
+type WorkerResponse<T> = {
+  data?: T;
+  error?: string;
+};
+
+function cleanBaseUrl(value: string): string {
+  return value.trim().replace(/\/+$/, '');
+}
+
+function toGuestbookEntry(entry: WorkerGuestbookEntry): GuestbookEntry {
+  return {
+    id: entry.id,
+    name: entry.display_name?.trim() || 'Guest',
+    familyName: entry.family_name?.trim() || '',
+    message: entry.message,
+    side: entry.side === 'groom' ? 'groom' : 'bride',
+    createdAt: entry.created_at,
+  };
 }
 
 // Mock data for demonstration
@@ -104,7 +133,7 @@ const validateGuestbookEntry = (name: string, familyName: string, message: strin
 
 export default function GuestbookPublic() {
   const { palette } = usePalette();
-  const [entries, setEntries] = useState<GuestbookEntry[]>(MOCK_ENTRIES);
+  const [entries, setEntries] = useState<GuestbookEntry[]>([]);
   const [name, setName] = useState('');
   const [familyName, setFamilyName] = useState('');
   const [message, setMessage] = useState('');
@@ -113,6 +142,47 @@ export default function GuestbookPublic() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  const workerBaseUrl = useMemo(
+    () => cleanBaseUrl(process.env.NEXT_PUBLIC_WORKER_BASE_URL || ''),
+    [],
+  );
+
+  useEffect(() => {
+    if (!workerBaseUrl) {
+      setEntries(MOCK_ENTRIES);
+      return;
+    }
+
+    let active = true;
+    const loadEntries = async () => {
+      try {
+        const weddingSlug = getWeddingSlug();
+        const response = await fetch(`${workerBaseUrl}/guestbook/approved?wedding_slug=${encodeURIComponent(weddingSlug)}`);
+        const payload = (await response.json()) as WorkerResponse<WorkerGuestbookEntry[]>;
+        if (!response.ok || payload.error) {
+          throw new Error(payload.error || `Failed to load guestbook (${response.status})`);
+        }
+
+        if (!active) {
+          return;
+        }
+
+        const mapped = (payload.data || []).map(toGuestbookEntry);
+        setEntries(mapped);
+      } catch (error) {
+        console.error('Guestbook load failed:', error);
+        if (active) {
+          setEntries([]);
+        }
+      }
+    };
+
+    loadEntries();
+    return () => {
+      active = false;
+    };
+  }, [workerBaseUrl]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,18 +221,6 @@ export default function GuestbookPublic() {
         setErrors([error.message || 'Failed to submit message. Please try again.']);
         return;
       }
-
-      setEntries((current) => [
-        {
-          id: crypto.randomUUID(),
-          name: payload.display_name,
-          familyName: payload.family_name,
-          message: payload.message,
-          side: selectedSide,
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ]);
 
       setToastMessage('Thanks for signing our guestbook! Your message has been saved.');
       setShowToast(true);

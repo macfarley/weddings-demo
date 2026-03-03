@@ -15,20 +15,24 @@ Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Col
 - CSS modules and page/component CSS
 - Vercel for hosting and deployment
 - Cloudflare for DNS and email routing
-- Supabase integration scaffolding (not fully wired yet)
+- Supabase (hosted) for guestbook + photo data
+- Cloudflare Worker for moderation and public approved-data reads
 
 ## What is implemented now
 
 - Public under-construction landing page
 - Core page scaffolding (about, contact, event details, gallery, upload, etc.)
 - Reusable UI components and palette/theming context
-- Static media assets for mock/demo presentation
+- Guestbook submit flow writes to Supabase
+- Photo upload flow writes metadata to Supabase + file to storage
+- Public `gallery` reads approved photos from Worker (`GET /photos/approved`)
+- Public `guestbook` reads approved entries from Worker (`GET /guestbook/approved`)
+- Admin moderation UI reads protected Worker routes
 
 ## In progress
 
-- Real upload pipeline to Supabase storage
-- Moderation and approval workflow
-- Production-ready API route wiring for moderation actions
+- Cloudflare production hardening (CORS + Access)
+- Final hosted deployment verification (`/health`, protected auth checks)
 
 ## Local development
 
@@ -54,7 +58,7 @@ Fill in these values in `.env`:
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
 - `NEXT_PUBLIC_WEDDING_SLUG` (for multi-site partitioning, defaults to `default`)
-- `NEXT_PUBLIC_WORKER_BASE_URL` (used by `/admin` moderation UI)
+- `NEXT_PUBLIC_WORKER_BASE_URL` (used by `/admin`, `/gallery`, and `/guestbook`)
 - `SUPABASE_SERVICE_ROLE_KEY` (server-only)
 
 Notes:
@@ -72,6 +76,15 @@ The project is set up for Vercel deployment:
 
 For custom domain launch through Cloudflare, point DNS for the site hostnames to Vercel and keep Cloudflare email routing records in place.
 
+### Vercel build note (important)
+
+This repo contains two TypeScript projects:
+- root Next.js app
+- `worker/` Cloudflare Worker
+
+The root app `tsconfig.json` intentionally excludes `worker/` so Vercel's Next build does not type-check Worker-only config files.
+If this boundary is removed, deploys can fail with errors from `worker/vitest.config.mts` (for example, missing `@cloudflare/vitest-pool-workers/config` in the root app install).
+
 ## Project structure
 
 ```text
@@ -88,4 +101,5 @@ supabase/
 ## Notes
 
 - `pages/index.tsx` currently exports the under-construction page for launch safety.
-- Supabase files in `lib/` and `supabase/` are placeholders for the upcoming production integration.
+- Public pages fall back to local mock/demo content only when `NEXT_PUBLIC_WORKER_BASE_URL` is unset.
+- Worker should expose public read routes (`GET /photos/approved`, `GET /guestbook/approved`) and protected moderation routes.
