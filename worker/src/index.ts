@@ -140,9 +140,11 @@ function getClient(env: WorkerEnv) {
 const HF_MODEL = 'Falconsai/nsfw_image_detection';
 const NSFW_THRESHOLD = 0.95;
 
-async function classifyNsfw(imageBytes: ArrayBuffer, env: WorkerEnv): Promise<boolean> {
-	// Fail open: no token → skip moderation, treat as safe.
-	if (!env.HF_TOKEN) return false;
+// Returns true = confirmed NSFW (auto-trash), false = confirmed safe (auto-approve),
+// null = classifier unavailable or inconclusive (leave in pending for manual review).
+async function classifyNsfw(imageBytes: ArrayBuffer, env: WorkerEnv): Promise<boolean | null> {
+	// No token → skip classification, leave in pending.
+	if (!env.HF_TOKEN) return null;
 
 	try {
 		const response = await fetch(
@@ -157,17 +159,20 @@ async function classifyNsfw(imageBytes: ArrayBuffer, env: WorkerEnv): Promise<bo
 			},
 		);
 
-		// Fail open on any API error (rate limit, model loading, etc.)
-		if (!response.ok) return false;
+		// Rate-limited, model loading, or any API error → leave in pending.
+		if (!response.ok) return null;
 
 		const results = await response.json() as Array<{ label: string; score: number }>;
-		if (!Array.isArray(results)) return false;
+		if (!Array.isArray(results) || results.length === 0) return null;
 
 		const nsfwEntry = results.find((r) => r.label?.toLowerCase() === 'nsfw');
-		return Boolean(nsfwEntry && nsfwEntry.score >= NSFW_THRESHOLD);
+		if (!nsfwEntry) return null; // unexpected schema → leave in pending
+
+		// Only flag if above the strict threshold; otherwise confirmed safe.
+		return nsfwEntry.score >= NSFW_THRESHOLD ? true : false;
 	} catch {
-		// Network error, timeout, parse failure — always fail open.
-		return false;
+		// Network error, timeout, parse failure — leave in pending.
+		return null;
 	}
 }
 
@@ -190,10 +195,15 @@ async function processPhotoAutomod(
 		return; // fail open
 	}
 
-	const flagged = await classifyNsfw(imageBytes, env);
+	const result = await classifyNsfw(imageBytes, env);
 
-	if (flagged) {
-		// Auto-trash: move to trash/ folder, mark rejected, keep invisible.
+	if (result === null) {
+		// Classifier unavailable or inconclusive — leave in pending for manual review.
+		return;
+	}
+
+	if (result === true) {
+		// Auto-trash: confirmed explicit content.
 		const targetPath = `${TRASH_PREFIX}/${getFilename(photo.storage_path)}`;
 		const { error: moveErr } = await supabase.storage.from(BUCKET).move(photo.storage_path, targetPath);
 		if (moveErr) return;
@@ -204,7 +214,7 @@ async function processPhotoAutomod(
 			storage_path: targetPath,
 		}).eq('id', photo.id);
 	} else {
-		// Auto-approve: move to approved/, make visible in gallery.
+		// Auto-approve: classifier confirmed safe.
 		const targetPath = `${APPROVED_PREFIX}/${getFilename(photo.storage_path)}`;
 		const { error: moveErr } = await supabase.storage.from(BUCKET).move(photo.storage_path, targetPath);
 		if (moveErr) return;
