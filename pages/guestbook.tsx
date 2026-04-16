@@ -199,13 +199,15 @@ export default function GuestbookPublic() {
 
     try {
       if (!isSupabaseConfigured()) {
-        setErrors(['Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.']);
+        setToastMessage('The guestbook is not available yet. We\'re finishing setup — check back soon!');
+        setShowToast(true);
         return;
       }
 
       const supabase = getSupabaseBrowserClient();
       if (!supabase) {
-        setErrors(['Supabase client initialization failed. Please verify environment variables.']);
+        setToastMessage('Guestbook service is temporarily unavailable. Please try again later.');
+        setShowToast(true);
         return;
       }
 

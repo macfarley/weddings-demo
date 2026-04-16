@@ -1,39 +1,42 @@
 # John & Crystal Wedding Website
 
-Client-facing wedding website demo for John Michael May Jr. and Crystal Lynn Collins.
+Client-facing wedding website for John Michael May Jr. and Crystal Lynn Collins.  
+**Friday, May 9, 2026 — Junior Fair Building, Wapakoneta, Ohio**
 
-## Current public status
-
-- The full site functionality is now visible from `/` for active style refinement.
-- The legacy `/under-construction` route remains available but is no longer the default homepage.
-- The active color palette is locked to the bride-selected **Petty Shop** scheme during refinement.
+Live at: [john-and-crystal-may.wedding](https://www.john-and-crystal-may.wedding)
 
 ## Stack
 
-- Next.js (Pages Router + TypeScript)
-- React + Chakra UI
-- CSS modules and page/component CSS
-- Vercel for hosting and deployment
-- Cloudflare for DNS and email routing
-- Supabase (hosted) for guestbook + photo data
-- Cloudflare Worker for moderation and public approved-data reads
+- **Next.js** (Pages Router + TypeScript) — frontend + routing
+- **Vercel** — hosting and deployment
+- **Supabase** — photo metadata (`photos` table), guestbook entries (`guestbook_entries` table), and photo file storage (`wedding-photos` bucket)
+- **Cloudflare Worker** — moderation API, approved-content reads, signed URL generation
+- **Cloudflare DNS** — domain routing
 
-## What is implemented now
+## What's live
 
-- Functional public homepage with links into live flows
-- Core page scaffolding (about, contact, event details, gallery, upload, etc.)
-- Reusable UI components and palette/theming context
-- Guestbook submit flow writes to Supabase
-- Photo upload flow writes metadata to Supabase + file to storage
-- Public `gallery` reads approved photos from Worker (`GET /photos/approved`)
-- Public `guestbook` reads approved entries from Worker (`GET /guestbook/approved`)
-- Admin moderation UI reads protected Worker routes
-- Palette switching is disabled and locked to `petty-shop`
+- Public homepage with links to all guest-facing pages
+- About, Program, Event Details, Gallery, Guestbook, Registry, Contact
+- **Send Your Photos** (`/sendyourphotos`) — guests upload photos directly to Supabase Storage; metadata rows land in `photos` with `status = pending`
+- **Guestbook** (`/guestbook`) — guests submit messages; entries land in `guestbook_entries`
+- **Gallery** (`/gallery`) — shows Worker-approved photos with signed URLs
+- **Admin** (`/admin`) — password-gated moderation UI for approving/rejecting photos and guestbook entries
+- Palette/theming context (locked to bride-selected scheme)
 
-## In progress
+## Architecture
 
-- Cloudflare production hardening (CORS + Access)
-- Final hosted deployment verification (`/health`, protected auth checks)
+```
+Guest browser
+  ├─ Photo upload ──► Supabase Storage (uploads/)
+  │                ──► Supabase DB (photos, status=pending)
+  ├─ Guestbook ────► Supabase DB (guestbook_entries)
+  └─ Gallery/GB reads ──► Cloudflare Worker ──► Supabase DB + signed URLs
+
+Admin browser
+  └─ Moderation UI ──► Cloudflare Worker (Bearer auth) ──► Supabase
+                          approve: moves file uploads/ → approved/, updates DB
+                          reject:  removes file, marks rejected
+```
 
 ## Local development
 
@@ -44,9 +47,37 @@ npm run dev
 
 Open `http://localhost:3000`.
 
-## Environment setup
+## Environment variables
 
-Use the committed example file as your template, then keep real values in your local env file.
+Copy `.env.example` to `.env` and fill in your values:
+
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser-safe) |
+| `NEXT_PUBLIC_WORKER_BASE_URL` | Cloudflare Worker URL |
+| `NEXT_PUBLIC_WEDDING_SLUG` | Wedding identifier (`john-crystal-2026`) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-side only — never expose in browser |
+
+## Database schema
+
+Schema is maintained as idempotent SQL migrations in `supabase/migrations/`.  
+`supabase/setup-live.sql` is a single-file composite you can paste directly into the Supabase SQL editor to initialize a fresh project.
+
+## Worker
+
+The Cloudflare Worker lives in `worker/`. Deploy with:
+
+```bash
+cd worker
+npx wrangler deploy
+```
+
+Required Worker secrets (set via `wrangler secret put`):
+- `SUPABASE_URL`
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `ADMIN_PASSWORD`
+- `ADMIN_ORIGIN` (optional — locks CORS to your Vercel domain)
 
 ```bash
 cp .env.example .env

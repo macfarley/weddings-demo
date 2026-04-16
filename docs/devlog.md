@@ -1,5 +1,69 @@
 # Dev Log
 
+## 2026-04-15 (Production Launch Verification)
+
+### Summary
+Full production readiness pass: dead code removal, UX integrity fixes, Cloudflare Worker deployment with correct secrets, and a fully automated end-to-end pipeline test. All MVP blockers resolved.
+
+### Completed Today
+
+**Dead code cleanup**
+- Removed `app/page.tsx` — App Router stub at `/` that was conflicting with `pages/index.tsx` (Pages Router). This was breaking the build silently in deployment.
+- Removed `app/api/approve.ts` and `app/api/deny.ts` — legacy Pages Router syntax files that had drifted into the App Router directory.
+- Removed orphaned `components/UploadButton.tsx`, `lib/uploadPhoto.ts`, `lib/supabase-browser.ts` — all only used by the deleted App Router stub.
+
+**UX integrity**
+- `pages/sendyourphotos.tsx` — removed raw Supabase config error messages that were surfacing to guests when env vars weren't available. Replaced with `FeatureToast` ("Photo uploads are not available yet...").
+- `pages/guestbook.tsx` — same dev error removed, replaced with FeatureToast.
+
+**Style**
+- `pages/contact.tsx` — fully palette-styled. Removed RSVP framing, shows contact placeholder.
+- `pages/registry.tsx` — fully palette-styled. "Your presence is the greatest gift" copy, registry links notice.
+
+**Worker deployment**
+- Discovered the live Worker URL (`https://worker.therealmccoyster.workers.dev`) was returning `Hello World!` — the Cloudflare template placeholder, not real code.
+- Root cause: Cloudflare dashboard had plaintext vars (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_PASSWORD`) that blocked `wrangler secret put` from running.
+- Fix: ran `wrangler deploy` (which wiped the plaintext vars), then immediately set all three as encrypted secrets via `wrangler secret put`.
+- Verified production runtime: `GET /health` → `{"ok":true,"url":true,"key":true}`.
+
+**Endpoint smoke tests (all passed)**
+- `GET /health` → `{"ok":true,"url":true,"key":true}`
+- `GET /photos/approved` → 200, empty array (no approved photos yet)
+- `GET /guestbook/approved` → 200, empty array
+- `GET /photos/pending` (with `Authorization: Bearer`) → 200, pending list
+- `GET /admin/stats` (authed) → 200, stats object
+- `GET /photos/pending` (no auth) → 401
+
+**Automated end-to-end pipeline test**
+All 6 steps via `supabase/pipeline_test.py` (gitignored):
+1. Upload test photo to Supabase Storage (`uploads/<uuid>.jpg`) ✅
+2. Insert `photos` row (`status=pending`, `is_visible=false`) ✅
+3. Verify photo appears in Worker `/photos/pending` ✅
+4. Approve via Worker `POST /photos/approve` → file moved `uploads/` → `approved/`, DB updated ✅
+5. Verify photo appears in Worker `/photos/approved` with signed URL ✅
+6. Reject/cleanup — photo removed from DB and storage ✅
+
+**Environment**
+- `.env` fully populated: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_WORKER_BASE_URL`, `NEXT_PUBLIC_WEDDING_SLUG=john-crystal-2026`, `SUPABASE_SERVICE_ROLE_KEY`
+- All Vercel env vars set by client
+
+**Artifacts**
+- Added `supabase/setup-live.sql` — idempotent one-shot script for tables, RLS, storage bucket. Tracked in git for reference.
+- Added `supabase/pipeline_test.py` to `.gitignore` (test artifact, not needed in repo)
+- Created `supabase/setup-live.sql` for onboarding/recovery reference.
+
+### Build Validation
+```
+npm run build   # ✅ clean — 15 routes, all static
+```
+
+### Remaining (post-launch)
+- Set `ADMIN_ORIGIN` Worker secret to production domain for strict CORS
+- Consider moving `/admin` to unguessable path or adding Cloudflare Access
+- `POST /mark-reviewed` route (optional operational aid)
+
+---
+
 ## 2026-03-03 (Build Verification + UI Lock)
 
 ### Summary

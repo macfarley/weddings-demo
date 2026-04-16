@@ -123,13 +123,15 @@ export default function SendYourPhotos() {
 
     try {
       if (!isSupabaseConfigured()) {
-        setErrors(['Supabase is not configured. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.']);
+        setToastMessage('Photo uploads are not available yet. We\'re finishing setup — check back soon!');
+        setShowToast(true);
         return;
       }
 
       const supabase = getSupabaseBrowserClient();
       if (!supabase || !file) {
-        setErrors(['Supabase client initialization failed. Please verify environment variables.']);
+        setToastMessage('Upload service is temporarily unavailable. Please try again later.');
+        setShowToast(true);
         return;
       }
 
