@@ -1,10 +1,15 @@
 import Link from 'next/link';
+import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
+
+const ACTIVE_BG = 'rgba(200, 235, 205, 0.95)';
 
 export default function NavBar() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const { palette } = usePalette();
+	const router = useRouter();
+	const isActive = (href: string) => router.pathname === href;
 
 	return (
 		<nav
@@ -24,30 +29,28 @@ export default function NavBar() {
 						John & Crystal's Wedding | May 9, 2026
 					</Link>
 					{/* Desktop links */}
-					<div className="navbar-links">
-						<Link href="/" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>Home</Link>
-						<Link href="/gallery" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>Gallery</Link>
-						<Link href="/guestbook" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>Guestbook</Link>
-						<Link href="/about" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>About</Link>					<Link href="/program" className="nav-link" style={{
-						color: palette.text,
-						borderColor: palette.primary,
-					}}>Program</Link>						<Link href="/sendyourphotos" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>Send Your Photos</Link>
-					</div>
+				<div className="navbar-links">
+					{[
+						{ href: '/', label: 'Home' },
+						{ href: '/gallery', label: 'Gallery' },
+						{ href: '/guestbook', label: 'Guestbook' },
+						{ href: '/about', label: 'About' },
+						{ href: '/program', label: 'Program' },
+						{ href: '/sendyourphotos', label: 'Send Your Photos' },
+					].map(({ href, label }) => (
+						<Link
+							key={href}
+							href={href}
+							className="nav-link"
+							aria-current={isActive(href) ? 'page' : undefined}
+							style={{
+								color: palette.text,
+								borderColor: isActive(href) ? '#111111' : palette.primary,
+								backgroundColor: isActive(href) ? ACTIVE_BG : undefined,
+							}}
+						>{label}</Link>
+					))}
+				</div>
 					{/* Hamburger for mobile */}
 					<button
 						className="navbar-hamburger"
@@ -64,34 +67,31 @@ export default function NavBar() {
 					</button>
 				</div>
 				{/* Mobile menu */}
-				{isMenuOpen && (
-					<div className="navbar-menu">
-						<ul>
-							<li><Link href="/" className="nav-link" style={{
-								color: palette.text,
-								borderColor: palette.primary,
-							}}>Home</Link></li>
-							<li><Link href="/gallery" className="nav-link" style={{
-								color: palette.text,
-								borderColor: palette.primary,
-							}}>Gallery</Link></li>
-							<li><Link href="/guestbook" className="nav-link" style={{
-								color: palette.text,
-								borderColor: palette.primary,
-							}}>Guestbook</Link></li>
-							<li><Link href="/about" className="nav-link" style={{
-								color: palette.text,
-								borderColor: palette.primary,
-							}}>About</Link></li>						<li><Link href="/program" className="nav-link" style={{
-							color: palette.text,
-							borderColor: palette.primary,
-						}}>Program</Link></li>							<li><Link href="/sendyourphotos" className="nav-link" style={{
-								color: palette.text,
-								borderColor: palette.primary,
-							}}>Send Your Photos</Link></li>
-						</ul>
-					</div>
-				)}
+			{isMenuOpen && (
+				<div className="navbar-menu">
+					<ul>
+						{[
+							{ href: '/', label: 'Home' },
+							{ href: '/gallery', label: 'Gallery' },
+							{ href: '/guestbook', label: 'Guestbook' },
+							{ href: '/about', label: 'About' },
+							{ href: '/program', label: 'Program' },
+							{ href: '/sendyourphotos', label: 'Send Your Photos' },
+						].map(({ href, label }) => (
+							<li key={href}><Link
+								href={href}
+								className="nav-link"
+								aria-current={isActive(href) ? 'page' : undefined}
+								style={{
+									color: palette.text,
+									borderColor: isActive(href) ? '#111111' : palette.primary,
+									backgroundColor: isActive(href) ? ACTIVE_BG : undefined,
+								}}
+							>{label}</Link></li>
+						))}
+					</ul>
+				</div>
+			)}
 			</div>
 			{/* Dynamic nav link styles for palette colors */}
 			<style jsx>{`
