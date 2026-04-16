@@ -68,6 +68,7 @@ export default function AdminPage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
+  const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
 
   const normalizedBaseUrl = useMemo(() => cleanBaseUrl(workerBaseUrl), [workerBaseUrl]);
 
@@ -234,6 +235,14 @@ export default function AdminPage() {
 
     try {
       await fetchJson<AdminStats>('/admin/stats');
+
+      // Determine role so the UI can hide admin-only actions
+      try {
+        const roleRes = await fetchJson<{ role: string }>('/auth/role');
+        setUserRole(roleRes.role === 'admin' ? 'admin' : 'client');
+      } catch {
+        setUserRole('client');
+      }
 
       resetFailures();
       setShowAuthModal(false);
@@ -416,13 +425,15 @@ export default function AdminPage() {
                         >
                           Approve
                         </button>
-                        <button
-                          className="admin-inline-button admin-delete"
-                          onClick={() => deleteGuestbook(entry.id)}
-                          disabled={Boolean(actionState[`guestbook-approve:${entry.id}`] || actionState[`guestbook-delete:${entry.id}`])}
-                        >
-                          Delete
-                        </button>
+                        {userRole === 'admin' && (
+                          <button
+                            className="admin-inline-button admin-delete"
+                            onClick={() => deleteGuestbook(entry.id)}
+                            disabled={Boolean(actionState[`guestbook-approve:${entry.id}`] || actionState[`guestbook-delete:${entry.id}`])}
+                          >
+                            Delete
+                          </button>
+                        )}
                       </div>
                     </li>
                   ))}

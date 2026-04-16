@@ -4,23 +4,33 @@ type WorkerEnv = {
 	SUPABASE_URL: string;
 	SUPABASE_SERVICE_ROLE_KEY: string;
 	ADMIN_PASSWORD?: string;
+	CLIENT_PASSWORD?: string;
 	ADMIN_ORIGIN?: string;
 };
 
 const BUCKET = 'wedding-photos';
 const UPLOADS_PREFIX = 'uploads';
 const APPROVED_PREFIX = 'approved';
-const PROTECTED_ROUTES = new Set([
+const TRASH_PREFIX = 'trash';
+
+// Routes requiring full admin password (permanent destructive operations)
+const ADMIN_ONLY_ROUTES = new Set([
+	'POST /photos/purge',
+	'POST /delete',
+	'POST /guestbook/delete',
+]);
+
+// Routes accessible to both admin and client passwords
+const CLIENT_ROUTES = new Set([
 	'GET /photos/pending',
 	'POST /photos/approve',
 	'POST /photos/reject',
 	'GET /guestbook/pending',
 	'POST /guestbook/approve',
-	'POST /guestbook/delete',
 	'GET /admin/stats',
+	'GET /auth/role',
 	'GET /list-uploads',
 	'POST /approve',
-	'POST /delete',
 	'GET /guestbook',
 ]);
 
@@ -34,7 +44,9 @@ export default {
 		const path = url.pathname.replace(/\/$/, '') || '/';
 		const routeKey = `${request.method} ${path}`;
 
-		if (PROTECTED_ROUTES.has(routeKey) && !isAuthorizedRequest(request, env)) {
+		if (ADMIN_ONLY_ROUTES.has(routeKey) && !isAdminRequest(request, env)) {
+			return withCors(request, env, json({ error: 'Unauthorized' }, 401));
+		} else if (CLIENT_ROUTES.has(routeKey) && !isClientOrAdminRequest(request, env)) {
 			return withCors(request, env, json({ error: 'Unauthorized' }, 401));
 		}
 
@@ -51,6 +63,10 @@ export default {
 						url: Boolean(env.SUPABASE_URL),
 						key: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
 					}));
+				case 'GET /auth/role':
+					return withCors(request, env, json({
+						role: isAdminRequest(request, env) ? 'admin' : 'client',
+					}));
 				case 'GET /photos/pending':
 					return withCors(request, env, await listPendingPhotos(env));
 				case 'GET /photos/approved':
@@ -59,6 +75,8 @@ export default {
 					return withCors(request, env, await approvePhotoById(request, env));
 				case 'POST /photos/reject':
 					return withCors(request, env, await rejectPhotoById(request, env));
+				case 'POST /photos/purge':
+					return withCors(request, env, await purgePhotoById(request, env));
 				case 'GET /guestbook/pending':
 					return withCors(request, env, await listPendingGuestbook(env));
 				case 'GET /guestbook/approved':
@@ -303,9 +321,11 @@ async function rejectPhotoById(request: Request, env: WorkerEnv): Promise<Respon
 		return json({ error: findError?.message || 'photo not found' }, 404);
 	}
 
-	const { error: removeError } = await supabase.storage.from(BUCKET).remove([photo.storage_path]);
-	if (removeError) {
-		return json({ error: removeError.message }, 500);
+	// Move to trash/ (reversible). Permanent deletion requires POST /photos/purge (admin only).
+	const targetPath = `${TRASH_PREFIX}/${getFilename(photo.storage_path)}`;
+	const { error: moveError } = await supabase.storage.from(BUCKET).move(photo.storage_path, targetPath);
+	if (moveError) {
+		return json({ error: moveError.message }, 500);
 	}
 
 	const { error: updateError } = await supabase
@@ -314,11 +334,42 @@ async function rejectPhotoById(request: Request, env: WorkerEnv): Promise<Respon
 			status: 'rejected',
 			is_visible: false,
 			reviewed_at: new Date().toISOString(),
+			storage_path: targetPath,
 		})
 		.eq('id', body.id);
 
 	if (updateError) {
 		return json({ error: updateError.message }, 500);
+	}
+
+	return json({ data: { ok: true, id: body.id, storage_path: targetPath } }, 200);
+}
+
+async function purgePhotoById(request: Request, env: WorkerEnv): Promise<Response> {
+	const body = await readJson<{ id?: string }>(request);
+	if (!body.id) {
+		return json({ error: 'id is required' }, 400);
+	}
+
+	const supabase = getClient(env);
+	const { data: photo, error: findError } = await supabase
+		.from('photos')
+		.select('id, storage_path')
+		.eq('id', body.id)
+		.single();
+
+	if (findError || !photo) {
+		return json({ error: findError?.message || 'photo not found' }, 404);
+	}
+
+	const { error: removeError } = await supabase.storage.from(BUCKET).remove([photo.storage_path]);
+	if (removeError) {
+		return json({ error: removeError.message }, 500);
+	}
+
+	const { error: deleteError } = await supabase.from('photos').delete().eq('id', body.id);
+	if (deleteError) {
+		return json({ error: deleteError.message }, 500);
 	}
 
 	return json({ data: { ok: true, id: body.id } }, 200);
@@ -491,22 +542,25 @@ function toAbsoluteUrl(baseUrl: string, value: string): string {
 	return `${normalizedBase}${normalizedPath}`;
 }
 
-function isAuthorizedRequest(request: Request, env: WorkerEnv): boolean {
-	if (isLocalDevRequest(request)) {
-		return true;
-	}
-
-	if (!env.ADMIN_PASSWORD) {
-		return false;
-	}
-
+function getBearerToken(request: Request): string | null {
 	const authHeader = request.headers.get('authorization') || '';
 	const match = authHeader.match(/^Bearer\s+(.+)$/i);
-	if (!match) {
-		return false;
-	}
+	return match ? match[1] : null;
+}
 
-	return match[1] === env.ADMIN_PASSWORD;
+function isAdminRequest(request: Request, env: WorkerEnv): boolean {
+	if (isLocalDevRequest(request)) return true;
+	if (!env.ADMIN_PASSWORD) return false;
+	return getBearerToken(request) === env.ADMIN_PASSWORD;
+}
+
+function isClientOrAdminRequest(request: Request, env: WorkerEnv): boolean {
+	if (isLocalDevRequest(request)) return true;
+	const token = getBearerToken(request);
+	if (!token) return false;
+	if (env.ADMIN_PASSWORD && token === env.ADMIN_PASSWORD) return true;
+	if (env.CLIENT_PASSWORD && token === env.CLIENT_PASSWORD) return true;
+	return false;
 }
 
 function isLocalDevRequest(request: Request): boolean {
