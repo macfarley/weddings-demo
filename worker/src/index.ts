@@ -6,6 +6,7 @@ type WorkerEnv = {
 	ADMIN_PASSWORD?: string;
 	CLIENT_PASSWORD?: string;
 	ADMIN_ORIGIN?: string;
+	HF_TOKEN?: string; // HuggingFace API token for auto-moderation (optional — fails open if absent)
 };
 
 const BUCKET = 'wedding-photos';
@@ -35,14 +36,19 @@ const CLIENT_ROUTES = new Set([
 ]);
 
 export default {
-	async scheduled(_event: ScheduledEvent, env: WorkerEnv): Promise<void> {
-		// Daily keep-alive ping — resets Supabase's 7-day auto-pause timer.
-		await fetch(`${env.SUPABASE_URL}/rest/v1/photos?select=id&limit=1`, {
-			headers: {
-				apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-				Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-			},
-		});
+	async scheduled(event: ScheduledController, env: WorkerEnv): Promise<void> {
+		if (event.cron === '*/2 * * * *') {
+			// Auto-moderate pending photos every 2 minutes
+			await autoModeratePending(env);
+		} else {
+			// Daily keep-alive ping — resets Supabase's 7-day auto-pause timer.
+			await fetch(`${env.SUPABASE_URL}/rest/v1/photos?select=id&limit=1`, {
+				headers: {
+					apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+					Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+				},
+			});
+		}
 	},
 
 	async fetch(request: Request, env: WorkerEnv): Promise<Response> {
@@ -125,6 +131,106 @@ function getClient(env: WorkerEnv) {
 	return createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
 		auth: { persistSession: false },
 	});
+}
+
+// ---------------------------------------------------------------------------
+// Auto-moderation (NSFW classifier via HuggingFace)
+// ---------------------------------------------------------------------------
+
+const HF_MODEL = 'Falconsai/nsfw_image_detection';
+const NSFW_THRESHOLD = 0.95;
+
+async function classifyNsfw(imageBytes: ArrayBuffer, env: WorkerEnv): Promise<boolean> {
+	// Fail open: no token → skip moderation, treat as safe.
+	if (!env.HF_TOKEN) return false;
+
+	try {
+		const response = await fetch(
+			`https://api-inference.huggingface.co/models/${HF_MODEL}`,
+			{
+				method: 'POST',
+				headers: {
+					'Authorization': `Bearer ${env.HF_TOKEN}`,
+					'Content-Type': 'application/octet-stream',
+				},
+				body: imageBytes,
+			},
+		);
+
+		// Fail open on any API error (rate limit, model loading, etc.)
+		if (!response.ok) return false;
+
+		const results = await response.json() as Array<{ label: string; score: number }>;
+		if (!Array.isArray(results)) return false;
+
+		const nsfwEntry = results.find((r) => r.label?.toLowerCase() === 'nsfw');
+		return Boolean(nsfwEntry && nsfwEntry.score >= NSFW_THRESHOLD);
+	} catch {
+		// Network error, timeout, parse failure — always fail open.
+		return false;
+	}
+}
+
+async function processPhotoAutomod(
+	photo: { id: string; storage_path: string },
+	env: WorkerEnv,
+): Promise<void> {
+	const supabase = getClient(env);
+
+	// Download raw image bytes using the service role key.
+	let imageBytes: ArrayBuffer;
+	try {
+		const imgRes = await fetch(
+			`${env.SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${photo.storage_path}`,
+			{ headers: { Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } },
+		);
+		if (!imgRes.ok) return; // fail open — can't fetch, leave as pending
+		imageBytes = await imgRes.arrayBuffer();
+	} catch {
+		return; // fail open
+	}
+
+	const flagged = await classifyNsfw(imageBytes, env);
+
+	if (flagged) {
+		// Auto-trash: move to trash/ folder, mark rejected, keep invisible.
+		const targetPath = `${TRASH_PREFIX}/${getFilename(photo.storage_path)}`;
+		const { error: moveErr } = await supabase.storage.from(BUCKET).move(photo.storage_path, targetPath);
+		if (moveErr) return;
+		await supabase.from('photos').update({
+			status: 'rejected',
+			is_visible: false,
+			reviewed_at: new Date().toISOString(),
+			storage_path: targetPath,
+		}).eq('id', photo.id);
+	} else {
+		// Auto-approve: move to approved/, make visible in gallery.
+		const targetPath = `${APPROVED_PREFIX}/${getFilename(photo.storage_path)}`;
+		const { error: moveErr } = await supabase.storage.from(BUCKET).move(photo.storage_path, targetPath);
+		if (moveErr) return;
+		await supabase.from('photos').update({
+			status: 'approved',
+			is_visible: true,
+			reviewed_at: new Date().toISOString(),
+			storage_path: targetPath,
+		}).eq('id', photo.id);
+	}
+}
+
+async function autoModeratePending(env: WorkerEnv): Promise<void> {
+	const supabase = getClient(env);
+	const { data: photos, error } = await supabase
+		.from('photos')
+		.select('id, storage_path')
+		.eq('status', 'pending')
+		.order('created_at', { ascending: true })
+		.limit(5); // process at most 5 per run to stay within CPU budget
+
+	if (error || !photos || photos.length === 0) return;
+
+	for (const photo of photos) {
+		await processPhotoAutomod(photo, env);
+	}
 }
 
 async function listUploads(env: WorkerEnv): Promise<Response> {
