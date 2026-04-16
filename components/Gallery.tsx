@@ -4,6 +4,7 @@ import ImageViewer from './ImageViewer';
 
 export interface Photo {
   url: string;
+  downloadUrl?: string;
   shortCaption: string;
   longCaption: string;
   uploaderName: string;
@@ -92,6 +93,7 @@ export default function Gallery({ photos = null }: GalleryProps) {
         isOpen={isViewerOpen}
         image={selectedImage ? {
           src: selectedImage.url,
+          downloadUrl: selectedImage.downloadUrl,
           uploaderName: selectedImage.uploaderName,
           shortCaption: selectedImage.shortCaption,
           longCaption: selectedImage.longCaption,

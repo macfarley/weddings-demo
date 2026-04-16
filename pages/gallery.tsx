@@ -5,6 +5,7 @@ import { getWeddingSlug } from '../lib/supabase';
 
 type WorkerPhoto = {
   image_url?: string | null;
+  download_url?: string | null;
   original_filename?: string | null;
   uploader_name?: string | null;
   caption?: string | null;
@@ -34,6 +35,7 @@ function toGalleryPhoto(item: WorkerPhoto): Photo | null {
 
   return {
     url,
+    downloadUrl: item.download_url?.trim() || url,
     shortCaption,
     longCaption: item.caption?.trim() || '',
     uploaderName: item.uploader_name?.trim() || 'Guest',

@@ -167,10 +167,14 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 			? null
 			: toAbsoluteUrl(env.SUPABASE_URL, signedData.signedUrl);
 
+		const slug = toDownloadSlug(row);
+		const downloadUrl = signedUrl ? `${signedUrl}&download=${slug}.jpg` : null;
+
 		return {
 			...row,
 			filename: getFilename(row.storage_path),
 			image_url: signedUrl,
+			download_url: downloadUrl,
 		};
 	}));
 
@@ -459,6 +463,18 @@ function normalizeFilename(filename?: string): string | null {
 function getFilename(path: string): string {
 	const part = path.split('/').pop();
 	return part || path;
+}
+
+function toDownloadSlug(row: { label_slug?: string | null; label_raw?: string | null; original_filename?: string | null }): string {
+	const source = row.label_slug?.trim()
+		|| row.label_raw?.trim()
+		|| row.original_filename?.trim()
+		|| 'wedding-photo';
+	return source
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '')
+		|| 'wedding-photo';
 }
 
 function toAbsoluteUrl(baseUrl: string, value: string): string {

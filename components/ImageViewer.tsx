@@ -4,6 +4,7 @@ interface ImageViewerProps {
   isOpen: boolean;
   image: {
     src: string;
+    downloadUrl?: string;
     uploaderName: string;
     shortCaption: string;
     longCaption?: string;
@@ -34,15 +35,7 @@ export default function ImageViewer({ isOpen, image, onClose }: ImageViewerProps
 
   if (!isOpen || !image) return null;
 
-  const handleDownload = () => {
-    // Create a download link from the image
-    const link = document.createElement('a');
-    link.href = image.src;
-    link.download = image.shortCaption || 'wedding-photo.jpg';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const downloadHref = image.downloadUrl || image.src;
 
   return (
     <div className="image-viewer-overlay" onClick={onClose}>
@@ -82,9 +75,13 @@ export default function ImageViewer({ isOpen, image, onClose }: ImageViewerProps
           )}
 
           {/* Download Button */}
-          <button className="image-viewer-download" onClick={handleDownload}>
+          <a
+            href={downloadHref}
+            download
+            className="image-viewer-download"
+          >
             📥 Download Photo
-          </button>
+          </a>
         </div>
       </div>
     </div>
