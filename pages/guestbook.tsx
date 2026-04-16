@@ -94,7 +94,7 @@ const MOCK_ENTRIES: GuestbookEntry[] = [
 ];
 
 // Validate input before submission
-const validateGuestbookEntry = (name: string, familyName: string, message: string) => {
+export const validateGuestbookEntry = (name: string, familyName: string, message: string) => {
   const errors: string[] = [];
 
   if (!name.trim()) {

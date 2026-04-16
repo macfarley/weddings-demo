@@ -1,6 +1,93 @@
 # Dev Log
 
-## 2026-04-15 (Production Launch Verification)
+## 2026-04-16
+
+### Summary
+Major UX polish pass, love-reactions feature shipped, gallery bug fixed, two-tier admin auth, auto-moderation, and full deployment push. All commits since the 2026-04-15 launch log.
+
+### Commits This Session
+
+**`32907ec` — fix: navbar hamburger, card backgrounds, gallery love reactions, nav routing**
+- Navbar: desktop link buttons were overflowing the bar; buttons now shrink responsively, then collapse to hamburger at 1100px via `@media (max-width: 1100px)` (was never triggering before — `display: none` on `.navbar-links` was missing entirely)
+- Gallery: `gallery-page-container` was overriding `section-full`'s solid white background with `rgba(255,255,255,0.15)` — bumped to `0.96`
+- About page: `<main>` was filling with solid `palette.background`, blocking the checker BG image. Removed inline style; gave `.about-intro` a white card background
+- Program page: same solid-main fix
+- Guestbook (`/guestbook`): header text "Thanks for Visiting" was floating against the checker. Added white card backgrounds to `.guestbook-header`, `.guestbook-entries-section`, and `.guestbook-form-section`
+- Photo-guestbook: same card treatment for `.photo-guestbook-header` and `.photo-guestbook-form-section`
+- Home page: "Event Details" card was linking to `/event-details` (broken page). Now links to `/program`
+- About hero image: shrunk from `26rem` → `19.5rem`, added `display: block` + auto margins for centered alignment
+- Mobile: `section-full`, `gallery-section`, `page-header` all use `90vw` fluid container on ≤768px
+- Gallery sort controls and love button CSS added
+- Test: fixed `public-routes.test.tsx` gallery test to clear `NEXT_PUBLIC_WORKER_BASE_URL` before render (worker env var in test env caused fetch → failure → empty photos → no buttons rendered)
+
+**`97caac7` — fix: automod fallback leaves photos pending (not auto-approved) when HF unavailable**
+- `classifyNsfw()` previously returned `null` for any error/timeout, which was causing photos to fall through to auto-approve rather than stay in pending
+- Corrected to only auto-approve when classifier explicitly returns `false` (confirmed safe)
+
+**`4aba1e6` — feat: auto-moderate pending photos via HuggingFace NSFW classifier (every 2min)**
+- Worker cron `*/2 * * * *` calls `autoModeratePending(env)` to classify new uploads
+- Uses HuggingFace `Falconsai/nsfw_image_detection` model at 95% threshold
+- Fails open (leaves as pending) if no `HF_TOKEN`, model loading, or network error
+- Only confirmed NSFW → auto-trash; confirmed safe → auto-approve
+
+**`3833263` — feat: daily Supabase keep-alive cron (9AM UTC)**
+- Added `"0 9 * * *"` cron to `wrangler.jsonc` triggers
+- Pings `GET /rest/v1/photos?select=id&limit=1` to prevent free-tier auto-pause (7-day idle timeout)
+
+**`29ce340` — feat: two-tier auth — client can approve/trash, admin retains purge and hard-delete**
+- Added `CLIENT_PASSWORD` Worker secret alongside `ADMIN_PASSWORD`
+- `ADMIN_ONLY_ROUTES` set: `POST /photos/purge`, `POST /delete`, `POST /guestbook/delete`
+- `CLIENT_ROUTES` set: approve, reject, pending lists, stats, role check
+- `GET /auth/role` returns `"admin"` or `"client"` — used by the admin UI to conditionally show destructive controls
+- Admin page (`pages/admin.tsx`) fetches role on load and hides purge/hard-delete for client-tier sessions
+
+**`8bdacf9` — feat: gallery download uses signed URL with semantic filename**
+- `download_url` is now `${signedUrl}&download=${slug}.jpg` where slug is derived from `original_filename` → ASCII-safe kebab-case
+- `toDownloadSlug()` and `getFilename()` helpers added to Worker
+
+**`d331360` — fix: consolidate all global CSS imports into _app.tsx**
+- All `styles/pages/*.css` and `styles/components/*.css` moved to single import block in `pages/_app.tsx`
+- Next.js forbids global CSS imports outside `_app.tsx` — this was causing intermittent build failures
+
+**`fffb887` — fix: explicit cache headers**
+- HTML responses: `Cache-Control: no-store, must-revalidate`
+- Static assets: `Cache-Control: public, max-age=31536000, immutable`
+
+**`6ffd337` — fix: image viewer**
+- Fullscreen viewer no longer has inner scroll
+- Closes on outside-tap (backdrop click)
+- Close button always reachable regardless of image size
+
+**`88d8858` — fix: full-width form card on mobile for /sendyourphotos**
+
+**`0deff19` — docs: clean up README for client demo**
+
+### Love Reactions Feature (shipped across multiple commits)
+- `supabase/migrations/20260416120000_add_love_reactions.sql` — `love_count` int column on `photos`, `photo_reactions` table (photo_id + ip_hash PK), `react_to_photo(uuid, text)` atomic RPC
+- Migration applied to production via Supabase Management API
+- Worker `POST /photos/react` — hashes `<photo_id>:<ip>` with SHA-256, calls RPC, returns updated count. Public route (no auth required)
+- Worker `listApprovedPhotos` now selects `love_count`; falls back gracefully if column missing (pre-migration)
+- Gallery component: love button per photo, optimistic UI update, localStorage persistence of already-loved IDs, rollback on network failure
+- Gallery page: sort toggle — "Newest First" / "❤️ Most Loved"
+
+### Docs
+- `docs/new-client-setup-guide.md` — full step-by-step guide for spinning up a new couple's site from this repo: fork, identity swap, Supabase project, Worker deploy, Vercel deploy, cron verification, end-to-end checklist
+
+### Build Validation
+```
+npm test        # ✅ 6/6 passing
+npm run build   # ✅ clean
+wrangler deploy # ✅ worker live
+```
+
+### Database State (production)
+- `photos` table: `love_count int not null default 0` column added
+- `photo_reactions` table: created with `(photo_id, ip_hash)` primary key
+- `react_to_photo(uuid, text)` RPC: live and verified
+
+---
+
+
 
 ### Summary
 Full production readiness pass: dead code removal, UX integrity fixes, Cloudflare Worker deployment with correct secrets, and a fully automated end-to-end pipeline test. All MVP blockers resolved.

@@ -151,6 +151,7 @@ function createMockSupabase() {
 				createSignedUrl: vi.fn(async (path: string) => ({ data: { signedUrl: `/storage/v1/object/sign/wedding-photos/${path}?token=stub` }, error: null })),
 			}),
 		},
+		rpc: vi.fn(async (_fn: string, _args: unknown) => ({ data: 5, error: null })),
 		from: (table: string) => new QueryBuilder(table, state),
 	};
 }
@@ -290,5 +291,126 @@ describe('Moderation worker routes', () => {
 	it('returns 404 for unknown routes', async () => {
 		const response = await worker.fetch(makeRequest('/unknown'), makeEnv() as never, createExecutionContext());
 		expect(response.status).toBe(404);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Auth role endpoint
+// ---------------------------------------------------------------------------
+
+describe('GET /auth/role', () => {
+	beforeEach(() => {
+		createClientMock.mockReset();
+		createClientMock.mockImplementation(() => createMockSupabase());
+	});
+
+	it('returns "admin" role for request with ADMIN_PASSWORD', async () => {
+		const env = makeEnv();
+		const request = makeRequest('/auth/role', 'GET', undefined, true); // Bearer top-secret = ADMIN_PASSWORD
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env as never, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		const data = (await response.json()) as { role: string };
+		expect(data.role).toBe('admin');
+	});
+
+	it('returns "client" role for request with CLIENT_PASSWORD', async () => {
+		const env = { ...makeEnv(), CLIENT_PASSWORD: 'client-pass' };
+		const headers = { Authorization: 'Bearer client-pass' };
+		const request = new IncomingRequest('https://example.com/auth/role', { method: 'GET', headers });
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env as never, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(200);
+		const data = (await response.json()) as { role: string };
+		expect(data.role).toBe('client');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Two-tier auth: purge is admin-only
+// ---------------------------------------------------------------------------
+
+describe('POST /photos/purge admin gate', () => {
+	beforeEach(() => {
+		createClientMock.mockReset();
+		createClientMock.mockImplementation(() => createMockSupabase());
+	});
+
+	it('returns 401 when CLIENT_PASSWORD is used for purge', async () => {
+		const env = { ...makeEnv(), CLIENT_PASSWORD: 'client-pass' };
+		const headers: Record<string, string> = {
+			Authorization: 'Bearer client-pass',
+			'Content-Type': 'application/json',
+		};
+		const request = new IncomingRequest('https://example.com/photos/purge', {
+			method: 'POST',
+			headers,
+			body: JSON.stringify({ id: 'photo-1' }),
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env as never, ctx);
+		await waitOnExecutionContext(ctx);
+
+		expect(response.status).toBe(401);
+	});
+
+	it('accepts ADMIN_PASSWORD for purge', async () => {
+		const response = await worker.fetch(
+			makeRequest('/photos/purge', 'POST', { id: 'photo-1' }),
+			makeEnv() as never,
+			createExecutionContext(),
+		);
+		// 200 or 400/500 depending on mock state — not 401
+		expect(response.status).not.toBe(401);
+	});
+});
+
+// ---------------------------------------------------------------------------
+// POST /photos/react
+// ---------------------------------------------------------------------------
+
+describe('POST /photos/react', () => {
+	beforeEach(() => {
+		createClientMock.mockReset();
+		createClientMock.mockImplementation(() => createMockSupabase());
+	});
+
+	it('returns 400 for missing photo_id', async () => {
+		const request = makeRequest('/photos/react', 'POST', {}, false);
+		const response = await worker.fetch(request, makeEnv() as never, createExecutionContext());
+		expect(response.status).toBe(400);
+		const data = (await response.json()) as { error: string };
+		expect(data.error).toMatch(/photo_id/i);
+	});
+
+	it('returns 400 for non-UUID photo_id', async () => {
+		const request = makeRequest('/photos/react', 'POST', { photo_id: 'not-a-uuid' }, false);
+		const response = await worker.fetch(request, makeEnv() as never, createExecutionContext());
+		expect(response.status).toBe(400);
+	});
+
+	it('returns 200 with love_count for valid UUID photo_id', async () => {
+		const validUuid = '9f400a11-907a-4f41-be4f-edb31324243f';
+		const request = makeRequest('/photos/react', 'POST', { photo_id: validUuid }, false);
+		const response = await worker.fetch(request, makeEnv() as never, createExecutionContext());
+		expect(response.status).toBe(200);
+		const data = (await response.json()) as { data: { love_count: number } };
+		expect(typeof data.data.love_count).toBe('number');
+	});
+
+	it('is publicly accessible (no auth required)', async () => {
+		const validUuid = '9f400a11-907a-4f41-be4f-edb31324243f';
+		// No Authorization header
+		const request = new IncomingRequest('https://example.com/photos/react', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ photo_id: validUuid }),
+		});
+		const response = await worker.fetch(request, makeEnv() as never, createExecutionContext());
+		expect(response.status).not.toBe(401);
 	});
 });
