@@ -1,4 +1,3 @@
-import '../styles/pages/under-construction.css';
 
 // Under Construction landing page
 export default function UnderConstruction() {

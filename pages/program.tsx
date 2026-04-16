@@ -1,6 +1,5 @@
 import { usePalette } from '../context/PaletteContext';
 import Head from 'next/head';
-import '../styles/pages/program.css';
 
 interface ProgramItem {
   time: string;

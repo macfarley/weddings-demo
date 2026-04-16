@@ -1,4 +1,3 @@
-import '../styles/pages/event-details.css';
 
 export default function EventDetails() {
   return (

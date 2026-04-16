@@ -1,6 +1,5 @@
 import { usePalette } from '../context/PaletteContext';
 import Head from 'next/head';
-import '../styles/pages/about.css';
 
 export default function About() {
   const { palette } = usePalette();

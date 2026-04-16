@@ -1,6 +1,5 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
-import '../styles/pages/admin.css';
 
 type UploadItem = {
   id: string;

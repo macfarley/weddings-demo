@@ -1,6 +1,5 @@
 // ColorSwatches component: shows vertical bar of color squares with names
 import React from 'react';
-import '../styles/components/color-swatches.css';
 
 interface ColorSwatchesProps {
   colors: string[];

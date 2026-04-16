@@ -1,6 +1,5 @@
 import Link from 'next/link';
 import { usePalette } from '../context/PaletteContext';
-import '../styles/pages/index.css';
 
 export default function HomePage() {
 	const { palette } = usePalette();

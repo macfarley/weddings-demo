@@ -1,5 +1,4 @@
 // ColorStoryToggle component stub
-import '../styles/components/color-story-toggle.css';
 
 interface ColorStoryToggleProps {
   colorStories: { name: string; colors: string[] }[];

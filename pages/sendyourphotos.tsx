@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
-import '../styles/pages/photo-guestbook.css';
 
 // Validate input before submission
 const validatePhotoSubmission = (

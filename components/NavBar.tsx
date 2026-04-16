@@ -1,7 +1,6 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
-import '../styles/components/navbar.css';
 
 export default function NavBar() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);

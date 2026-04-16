@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import '../styles/components/image-viewer.css';
 
 interface ImageViewerProps {
   isOpen: boolean;

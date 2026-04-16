@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import FeatureToast from '../components/FeatureToast';
-import '../styles/pages/upload.css';
 
 // Photo Upload + Guestbook stub
 export default function Upload() {
