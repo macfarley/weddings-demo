@@ -79,59 +79,10 @@ Required Worker secrets (set via `wrangler secret put`):
 - `ADMIN_PASSWORD`
 - `ADMIN_ORIGIN` (optional — locks CORS to your Vercel domain)
 
-```bash
-cp .env.example .env
-```
-
-Fill in these values in `.env`:
-
-- `SUPABASE_PROJECT_REF`
-- `SUPABASE_ACCESS_TOKEN` (for CLI commands)
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-- `NEXT_PUBLIC_WEDDING_SLUG` (for multi-site partitioning, defaults to `default`)
-- `NEXT_PUBLIC_WORKER_BASE_URL` (used by `/admin`, `/gallery`, and `/guestbook`)
-- `SUPABASE_SERVICE_ROLE_KEY` (server-only)
-
-Notes:
-
-- `.env` is gitignored and should never be committed.
-- `.env.example` stays in git with placeholder values only.
-
 ## Deployment
 
-The project is set up for Vercel deployment:
+Vercel auto-deploys on push to `main`. Framework is auto-detected as Next.js.
 
-- Framework preset: Next.js (auto-detected)
-- Build command: `next build`
-- Start command: `next start`
+DNS is managed through Cloudflare. Domain records point to Vercel; email routing records remain in Cloudflare.
 
-For custom domain launch through Cloudflare, point DNS for the site hostnames to Vercel and keep Cloudflare email routing records in place.
-
-### Vercel build note (important)
-
-This repo contains two TypeScript projects:
-- root Next.js app
-- `worker/` Cloudflare Worker
-
-The root app `tsconfig.json` intentionally excludes `worker/` so Vercel's Next build does not type-check Worker-only config files.
-If this boundary is removed, deploys can fail with errors from `worker/vitest.config.mts` (for example, missing `@cloudflare/vitest-pool-workers/config` in the root app install).
-
-## Project structure
-
-```text
-pages/
-components/
-context/
-styles/
-public/
-lib/
-docs/
-supabase/
-```
-
-## Notes
-
-- `pages/index.tsx` now serves the functional homepage for style and UX refinement.
-- Public pages fall back to local mock/demo content only when `NEXT_PUBLIC_WORKER_BASE_URL` is unset.
-- Worker should expose public read routes (`GET /photos/approved`, `GET /guestbook/approved`) and protected moderation routes.
+> **Note:** The repo contains two separate TypeScript projects — the root Next.js app and `worker/`. The root `tsconfig.json` intentionally excludes `worker/` to prevent Vercel's build from type-checking Worker-only files. Do not remove this boundary.
