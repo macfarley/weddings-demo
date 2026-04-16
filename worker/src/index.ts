@@ -35,7 +35,17 @@ const CLIENT_ROUTES = new Set([
 ]);
 
 export default {
-	async fetch(request, env): Promise<Response> {
+	async scheduled(_event: ScheduledEvent, env: WorkerEnv): Promise<void> {
+		// Daily keep-alive ping — resets Supabase's 7-day auto-pause timer.
+		await fetch(`${env.SUPABASE_URL}/rest/v1/photos?select=id&limit=1`, {
+			headers: {
+				apikey: env.SUPABASE_SERVICE_ROLE_KEY,
+				Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
+			},
+		});
+	},
+
+	async fetch(request: Request, env: WorkerEnv): Promise<Response> {
 		if (request.method === 'OPTIONS') {
 			return new Response(null, { status: 204, headers: corsHeaders(request, env) });
 		}
