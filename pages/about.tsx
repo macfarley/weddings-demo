@@ -27,7 +27,7 @@ export default function About() {
         <meta name="description" content="Our love story and journey together" />
       </Head>
 
-      <main style={{ backgroundColor: palette.background }}>
+      <main>
         <div className="page-container">
           <div className="about-container">
             <div className="about-intro">

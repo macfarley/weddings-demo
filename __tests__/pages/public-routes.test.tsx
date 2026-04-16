@@ -28,7 +28,15 @@ describe('Public page routes', () => {
   });
 
   it('renders /gallery content', () => {
+    // Clear worker URL so the component uses mock photos instead of firing a
+    // real fetch (which would fail in the test environment and set photos=[]).
+    const savedUrl = process.env.NEXT_PUBLIC_WORKER_BASE_URL;
+    delete process.env.NEXT_PUBLIC_WORKER_BASE_URL;
+
     render(<GalleryPage />);
+
+    process.env.NEXT_PUBLIC_WORKER_BASE_URL = savedUrl;
+
     expect(screen.getByText('Gallery')).toBeInTheDocument();
     expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
   });

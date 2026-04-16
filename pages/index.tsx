@@ -41,7 +41,7 @@ export default function HomePage() {
 							<article className="event-detail-card">
 								<span className="event-detail-label" style={{ color: palette.primary }}>Event Details</span>
 								<p className="event-detail-content">Schedule, venue details, and key wedding-day info.</p>
-								<Link className="event-detail-link" style={{ color: palette.primary }} href="/event-details">Open Event Details</Link>
+								<Link className="event-detail-link" style={{ color: palette.primary }} href="/program">View Program</Link>
 							</article>
 
 							<article className="event-detail-card">

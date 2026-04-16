@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
@@ -51,10 +51,10 @@ const validatePhotoSubmission = (
       errors.push('Please upload a valid image file (JPEG, PNG, or HEIC)');
     }
 
-    // Validate file size (max 3MB per requirements)
-    const maxSize = 3 * 1024 * 1024; // 3MB
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
     if (file.size > maxSize) {
-      errors.push('Photo must be smaller than 3MB. Consider using a phone camera quality or reducing dimensions.');
+      errors.push('Photo must be smaller than 5MB. Consider using a phone camera quality or reducing dimensions.');
     }
   }
 
@@ -82,6 +82,8 @@ export default function SendYourPhotos() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [showSizeHelp, setShowSizeHelp] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toLabelSlug = (value: string) => {
     const cleaned = value
@@ -101,10 +103,20 @@ export default function SendYourPhotos() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setFileName(selectedFile.name);
+    if (!selectedFile) return;
+
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (selectedFile.size > maxSize) {
+      setToastMessage('This photo is too large. Max size is 5MB.');
+      setShowToast(true);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setFile(null);
+      setFileName('');
+      return;
     }
+
+    setFile(selectedFile);
+    setFileName(selectedFile.name);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -237,9 +249,10 @@ export default function SendYourPhotos() {
             <div className="form-group">
               <label className="form-label" style={{ color: palette.text }}>
                 Your Photo <span className="form-label-required">*</span>
-                <span className="form-label-hint">(JPEG, PNG, HEIC, HEIF • Max 3MB)</span>
+                <span className="form-label-hint">(JPEG, PNG, HEIC, HEIF • Max 5MB)</span>
               </label>
               <input
+                ref={fileInputRef}
                 type="file"
                 className="form-file"
                 accept="image/jpeg,image/png,image/heic,image/heif,.heic,.heif"
@@ -250,6 +263,49 @@ export default function SendYourPhotos() {
                   borderColor: palette.primary,
                 }}
               />
+              <p className="form-file-hint" style={{ color: palette.text, margin: '0.4rem 0 0' }}>
+                We can only accept photos up to 5MB.{' '}
+                <button
+                  type="button"
+                  onClick={() => setShowSizeHelp(v => !v)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    padding: 0,
+                    color: palette.primary,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontSize: 'inherit',
+                    textDecoration: 'underline',
+                    minHeight: 0,
+                  }}
+                  aria-expanded={showSizeHelp}
+                  aria-controls="size-help-panel"
+                >
+                  {showSizeHelp ? 'Hide help' : 'Tap here for help'}
+                </button>
+              </p>
+              {showSizeHelp && (
+                <div
+                  id="size-help-panel"
+                  role="region"
+                  aria-label="Photo size help"
+                  style={{
+                    marginTop: '0.5rem',
+                    padding: '0.75rem 1rem',
+                    borderRadius: '0.375rem',
+                    backgroundColor: 'rgba(255,255,255,0.9)',
+                    border: `1px solid ${palette.primary}`,
+                    fontSize: '0.9rem',
+                    lineHeight: 1.6,
+                    color: palette.text,
+                  }}
+                >
+                  <strong style={{ color: palette.primary }}>📱 iPhone:</strong> Open the Photos app → tap your photo → swipe up to see file info. If it&rsquo;s over 5MB, try sharing it to yourself via Messages first — that compresses it automatically.
+                  <br /><br />
+                  <strong style={{ color: palette.primary }}>🤖 Android:</strong> Open Gallery → long-press the photo → tap Details or ℹ️. If it&rsquo;s too large, use Google Photos → &ldquo;Edit&rdquo; → export at a lower quality, or reduce the resolution in Settings under Camera quality.
+                </div>
+              )}
               {fileName && (
                 <div className="form-file-hint" style={{ color: palette.text }}>
                   Selected: {fileName}

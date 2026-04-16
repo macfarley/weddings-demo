@@ -12,6 +12,7 @@ type UploadItem = {
   caption?: string | null;
   status?: string;
   created_at?: string;
+  image_url?: string | null;
 };
 
 type GuestbookEntry = {
@@ -58,6 +59,7 @@ export default function AdminPage() {
   const { palette } = usePalette();
   const [workerBaseUrl, setWorkerBaseUrl] = useState(process.env.NEXT_PUBLIC_WORKER_BASE_URL || '');
   const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [trashPhotos, setTrashPhotos] = useState<UploadItem[]>([]);
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
   const [stats, setStats] = useState<AdminStats>({ pending_photos: 0, pending_guestbook: 0 });
   const [loading, setLoading] = useState(false);
@@ -150,13 +152,15 @@ export default function AdminPage() {
 
     setLoading(true);
     try {
-      const [uploadsData, guestbookData, statsData] = await Promise.all([
+      const [uploadsData, trashData, guestbookData, statsData] = await Promise.all([
         fetchJson<UploadItem[]>('/photos/pending'),
+        fetchJson<UploadItem[]>('/photos/trash'),
         fetchJson<GuestbookEntry[]>('/guestbook/pending'),
         fetchJson<AdminStats>('/admin/stats'),
       ]);
 
       setUploads(Array.isArray(uploadsData) ? uploadsData : []);
+      setTrashPhotos(Array.isArray(trashData) ? trashData : []);
       setGuestbookEntries(Array.isArray(guestbookData) ? guestbookData : []);
       setStats(statsData || { pending_photos: 0, pending_guestbook: 0 });
       setStatusMessage('Moderation data refreshed.');
@@ -214,6 +218,27 @@ export default function AdminPage() {
       setStatusMessage('Photo rejected.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Delete failed.';
+      setError(message);
+    } finally {
+      withActionState(actionKey, false);
+    }
+  }, [fetchJson, withActionState]);
+
+  const purgePhoto = useCallback(async (id: string) => {
+    const actionKey = `purge:${id}`;
+    withActionState(actionKey, true);
+    setError('');
+    setStatusMessage('');
+    try {
+      await fetchJson('/photos/purge', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+
+      setTrashPhotos((current) => current.filter((item) => item.id !== id));
+      setStatusMessage('Photo permanently deleted.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Purge failed.';
       setError(message);
     } finally {
       withActionState(actionKey, false);
@@ -395,6 +420,49 @@ export default function AdminPage() {
                           >
                             Reject
                           </button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+
+            <div className="admin-panel admin-panel-nsfw">
+              <h2 className="admin-nsfw-heading">&#9888; Possibly NSFW &#8212; Auto-moderated Trash ({trashPhotos.length})</h2>
+              {trashPhotos.length === 0 ? (
+                <p className="admin-empty">No trashed photos.</p>
+              ) : (
+                <ul className="admin-list">
+                  {trashPhotos.map((item) => {
+                    const purgeKey = `purge:${item.id}`;
+                    const title = item.label_raw || item.original_filename || item.filename || item.storage_path;
+                    return (
+                      <li key={item.id} className="admin-list-item">
+                        {item.image_url && (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={item.image_url}
+                            alt={title}
+                            className="admin-trash-thumb"
+                          />
+                        )}
+                        <div className="admin-item-meta">
+                          <strong>{title}</strong>
+                          {item.uploader_name && <span>By: {item.uploader_name}</span>}
+                          {item.caption && <span>{item.caption}</span>}
+                          <span>Created: {formatDate(item.created_at)}</span>
+                        </div>
+                        <div className="admin-actions">
+                          {userRole === 'admin' && (
+                            <button
+                              className="admin-inline-button admin-delete"
+                              onClick={() => purgePhoto(item.id)}
+                              disabled={Boolean(actionState[purgeKey])}
+                            >
+                              Purge
+                            </button>
+                          )}
                         </div>
                       </li>
                     );

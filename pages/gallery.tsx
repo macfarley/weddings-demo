@@ -4,6 +4,7 @@ import Gallery, { type Photo } from '../components/Gallery';
 import { getWeddingSlug } from '../lib/supabase';
 
 type WorkerPhoto = {
+  id?: string | null;
   image_url?: string | null;
   download_url?: string | null;
   original_filename?: string | null;
@@ -11,6 +12,7 @@ type WorkerPhoto = {
   caption?: string | null;
   label_raw?: string | null;
   label_slug?: string | null;
+  love_count?: number | null;
 };
 
 type WorkerResponse<T> = {
@@ -39,17 +41,28 @@ function toGalleryPhoto(item: WorkerPhoto): Photo | null {
     shortCaption,
     longCaption: item.caption?.trim() || '',
     uploaderName: item.uploader_name?.trim() || 'Guest',
+    photoId: item.id?.trim() || undefined,
+    loveCount: item.love_count ?? 0,
   };
 }
 
 export default function GalleryPage() {
   const { palette } = usePalette();
   const [photos, setPhotos] = useState<Photo[] | null>(null);
+  const [sortOrder, setSortOrder] = useState<'newest' | 'popular'>('newest');
 
   const workerBaseUrl = useMemo(
     () => cleanBaseUrl(process.env.NEXT_PUBLIC_WORKER_BASE_URL || ''),
     [],
   );
+
+  const sortedPhotos = useMemo(() => {
+    if (!photos) return photos;
+    if (sortOrder === 'popular') {
+      return [...photos].sort((a, b) => (b.loveCount ?? 0) - (a.loveCount ?? 0));
+    }
+    return photos;
+  }, [photos, sortOrder]);
 
   useEffect(() => {
     if (!workerBaseUrl) {
@@ -112,10 +125,28 @@ export default function GalleryPage() {
               0 2px 0 ${palette.highlight}
             `
           }}>Gallery</h1>
+          {photos && photos.length > 0 && (
+            <div className="gallery-sort-controls">
+              <button
+                className={`gallery-sort-btn${sortOrder === 'newest' ? ' active' : ''}`}
+                onClick={() => setSortOrder('newest')}
+                style={{ borderColor: palette.primary, color: sortOrder === 'newest' ? '#fff' : palette.primary, backgroundColor: sortOrder === 'newest' ? palette.primary : 'transparent' }}
+              >
+                Newest First
+              </button>
+              <button
+                className={`gallery-sort-btn${sortOrder === 'popular' ? ' active' : ''}`}
+                onClick={() => setSortOrder('popular')}
+                style={{ borderColor: palette.primary, color: sortOrder === 'popular' ? '#fff' : palette.primary, backgroundColor: sortOrder === 'popular' ? palette.primary : 'transparent' }}
+              >
+                ❤️ Most Loved
+              </button>
+            </div>
+          )}
           {photos && photos.length === 0 ? (
             <p style={{ color: palette.text }}>No approved photos yet. Check back soon.</p>
           ) : null}
-          <Gallery photos={photos} />
+          <Gallery photos={sortedPhotos} workerBaseUrl={workerBaseUrl} />
         </section>
       </main>
     </div>

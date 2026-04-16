@@ -283,6 +283,23 @@ a {
 }
 
 @media (max-width: 768px) {
+  /* Fluid container pattern: 90vw, centered, never collapses */
+  .section-full,
+  .gallery-section,
+  .page-header {
+    width: 90vw;
+    max-width: none;
+    flex-shrink: 0;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+  }
+
+  /* Reduce side padding so it doesn't eat into the 90vw */
+  .main-content {
+    padding: 1.5rem 0;
+  }
+
   .gallery-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -291,5 +308,86 @@ a {
 @media (max-width: 480px) {
   .gallery-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ── Gallery love button ────────────────────────────────────────────────── */
+.gallery-love-btn {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+  padding: 4px 9px 4px 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  transition: transform 120ms, box-shadow 120ms;
+  min-width: 36px;
+  min-height: 28px;
+}
+
+.gallery-love-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.gallery-love-btn:disabled {
+  cursor: default;
+}
+
+.gallery-love-btn.loved {
+  background: rgba(254, 226, 226, 0.95);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.gallery-love-count {
+  color: #6b7280;
+  font-size: 0.75rem;
+}
+
+.gallery-love-btn.loved .gallery-love-count {
+  color: #dc2626;
+}
+
+/* ── Gallery sort controls ──────────────────────────────────────────────── */
+.gallery-sort-controls {
+  display: flex;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.gallery-sort-btn {
+  border: 2px solid;
+  border-radius: 999px;
+  padding: 0.35rem 1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms;
+  background: transparent;
+}
+
+/* ── Fluid safe container utility ───────────────────────────────────────── */
+/* Use on any inner card that must stay 90vw on mobile and never collapse.  */
+.safe-container {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .safe-container {
+    width: 90vw;
+    max-width: none;
+    margin-left: auto;
+    margin-right: auto;
+    flex-shrink: 0;
   }
 }

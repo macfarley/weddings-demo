@@ -24,6 +24,7 @@ const ADMIN_ONLY_ROUTES = new Set([
 // Routes accessible to both admin and client passwords
 const CLIENT_ROUTES = new Set([
 	'GET /photos/pending',
+	'GET /photos/trash',
 	'POST /photos/approve',
 	'POST /photos/reject',
 	'GET /guestbook/pending',
@@ -84,10 +85,10 @@ export default {
 						role: isAdminRequest(request, env) ? 'admin' : 'client',
 					}));
 				case 'GET /photos/pending':
-					return withCors(request, env, await listPendingPhotos(env));
-				case 'GET /photos/approved':
-					return withCors(request, env, await listApprovedPhotos(env, url));
-				case 'POST /photos/approve':
+					return withCors(request, env, await listPendingPhotos(env));			case 'GET /photos/trash':
+				return withCors(request, env, await listTrashPhotos(env));				case 'GET /photos/approved':
+					return withCors(request, env, await listApprovedPhotos(env, url));			case 'POST /photos/react':
+				return withCors(request, env, await reactToPhoto(request, env));				case 'POST /photos/approve':
 					return withCors(request, env, await approvePhotoById(request, env));
 				case 'POST /photos/reject':
 					return withCors(request, env, await rejectPhotoById(request, env));
@@ -279,23 +280,66 @@ async function listPendingPhotos(env: WorkerEnv): Promise<Response> {
 	return json({ data: mapped }, 200);
 }
 
+async function listTrashPhotos(env: WorkerEnv): Promise<Response> {
+	const supabase = getClient(env);
+	const { data, error } = await supabase
+		.from('photos')
+		.select('id, storage_path, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible')
+		.eq('status', 'rejected')
+		.order('created_at', { ascending: false })
+		.limit(500);
+
+	if (error) {
+		return json({ error: error.message }, 500);
+	}
+
+	const rows = data || [];
+	const signed = await Promise.all(rows.map(async (row) => {
+		const { data: signedData, error: signedError } = await supabase
+			.storage
+			.from(BUCKET)
+			.createSignedUrl(row.storage_path, 60 * 60);
+
+		const signedUrl = signedError || !signedData?.signedUrl
+			? null
+			: toAbsoluteUrl(env.SUPABASE_URL, signedData.signedUrl);
+
+		return {
+			...row,
+			filename: getFilename(row.storage_path),
+			image_url: signedUrl,
+		};
+	}));
+
+	return json({ data: signed }, 200);
+}
+
 async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	const supabase = getClient(env);
 	const weddingSlug = (url.searchParams.get('wedding_slug') || '').trim();
 
-	let query = supabase
-		.from('photos')
-		.select('id, wedding_slug, storage_path, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible')
-		.eq('status', 'approved')
-		.eq('is_visible', true)
-		.order('created_at', { ascending: false })
-		.limit(500);
+	// Try with love_count first (requires migration); fall back without it if the column is missing.
+	const baseSelect = 'id, wedding_slug, storage_path, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible';
 
-	if (weddingSlug) {
-		query = query.eq('wedding_slug', weddingSlug);
+	const buildQuery = (select: string) => {
+		let q = supabase
+			.from('photos')
+			.select(select)
+			.eq('status', 'approved')
+			.eq('is_visible', true)
+			.order('created_at', { ascending: false })
+			.limit(500);
+		if (weddingSlug) q = q.eq('wedding_slug', weddingSlug);
+		return q;
+	};
+
+	let { data, error } = await buildQuery(`${baseSelect}, love_count`);
+
+	// If love_count column doesn't exist yet (migration pending), retry without it.
+	if (error && error.message.includes('love_count')) {
+		({ data, error } = await buildQuery(baseSelect));
 	}
 
-	const { data, error } = await query;
 	if (error) {
 		return json({ error: error.message }, 500);
 	}
@@ -323,6 +367,45 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	}));
 
 	return json({ data: signed }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Love reactions
+// ---------------------------------------------------------------------------
+
+async function hashIpForPhoto(ip: string, photoId: string): Promise<string> {
+	const data = new TextEncoder().encode(`${photoId}:${ip}`);
+	const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+	return Array.from(new Uint8Array(hashBuffer))
+		.map((b) => b.toString(16).padStart(2, '0'))
+		.join('');
+}
+
+async function reactToPhoto(request: Request, env: WorkerEnv): Promise<Response> {
+	const body = await readJson<{ photo_id?: string }>(request);
+
+	// Basic UUID format validation to reject obvious junk before hitting the DB.
+	if (!body.photo_id || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.photo_id)) {
+		return json({ error: 'photo_id is required and must be a valid UUID' }, 400);
+	}
+
+	// Cloudflare provides the real client IP in this header.
+	const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+
+	// Hash <photo_id>:<ip> so the same IP can't be correlated across different photos.
+	const ipHash = await hashIpForPhoto(ip, body.photo_id);
+
+	const supabase = getClient(env);
+	const { data, error } = await supabase.rpc('react_to_photo', {
+		p_photo_id: body.photo_id,
+		p_ip_hash: ipHash,
+	});
+
+	if (error) {
+		return json({ error: error.message }, 500);
+	}
+
+	return json({ data: { love_count: data as number } }, 200);
 }
 
 async function approvePhoto(request: Request, env: WorkerEnv): Promise<Response> {

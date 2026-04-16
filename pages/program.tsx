@@ -83,7 +83,7 @@ export default function Program() {
         <meta name="description" content="Ceremony and reception program timeline" />
       </Head>
 
-      <main style={{ backgroundColor: palette.background }}>
+      <main>
         <div className="page-container">
           <div className="program-container">
             {/* Header */}

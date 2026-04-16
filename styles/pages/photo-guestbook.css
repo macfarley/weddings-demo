@@ -10,6 +10,12 @@
 .photo-guestbook-header {
   text-align: center;
   margin-bottom: 2rem;
+  max-width: 42rem;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 1.5rem 2rem;
+  background-color: rgba(255, 255, 255, 0.97);
+  border-radius: 0.75rem;
 }
 
 .photo-guestbook-header h1 {
@@ -31,6 +37,7 @@
   padding: 1.5rem;
   border-radius: 0.5rem;
   border: 1px solid rgba(0, 0, 0, 0.1);
+  background-color: rgba(255, 255, 255, 0.97);
 }
 
 .photo-guestbook-form-title {
