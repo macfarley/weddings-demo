@@ -258,7 +258,7 @@
 /* Mobile optimization */
 @media (max-width: 640px) {
   .photo-guestbook-container {
-    padding: 0.75rem;
+    padding: 0.75rem 5vw;
   }
 
   .photo-guestbook-header h1 {
@@ -266,6 +266,7 @@
   }
 
   .photo-guestbook-form-section {
+    width: 100%;
     padding: 1rem;
     border: none;
     background-color: transparent;
