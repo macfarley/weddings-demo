@@ -46,7 +46,7 @@ describe('Guestbook form validation', () => {
     render(<GuestbookPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'Alex' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'Smith' } });
     // leave message blank
     fireEvent.click(screen.getByRole('button', { name: /sign guestbook/i }));
 
@@ -74,7 +74,7 @@ describe('Guestbook form validation', () => {
     fireEvent.change(screen.getByPlaceholderText(/first name/i), {
       target: { value: '<script>alert(1)</script>' },
     });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'Smith' } });
     fireEvent.change(screen.getByPlaceholderText(/share your well wishes/i), { target: { value: 'Hello!' } });
     fireEvent.click(screen.getByRole('button', { name: /sign guestbook/i }));
 
@@ -88,7 +88,7 @@ describe('Guestbook form validation', () => {
     render(<GuestbookPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'Alex' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'Smith' } });
     fireEvent.change(screen.getByPlaceholderText(/share your well wishes/i), {
       target: { value: 'Click javascript:alert(1)' },
     });
@@ -106,7 +106,7 @@ describe('Guestbook form validation', () => {
     render(<GuestbookPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'Alex' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'Smith' } });
     fireEvent.change(screen.getByPlaceholderText(/share your well wishes/i), {
       target: { value: 'Congrats!' },
     });
@@ -124,7 +124,7 @@ describe('Guestbook form validation', () => {
     render(<GuestbookPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'Alex' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'Smith' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'Smith' } });
     fireEvent.change(screen.getByPlaceholderText(/share your well wishes/i), {
       target: { value: 'Congrats!' },
     });

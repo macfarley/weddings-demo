@@ -31,8 +31,8 @@ describe('Gallery page worker integration', () => {
     delete process.env.NEXT_PUBLIC_WORKER_BASE_URL;
     render(<GalleryPage />);
     expect(screen.getByText('Gallery')).toBeInTheDocument();
-    // Mock photos render as gallery thumbnails (role="button")
-    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+    // Mock photos render as emoji placeholder tiles (role="presentation")
+    expect(screen.getAllByRole('presentation').length).toBeGreaterThan(0);
   });
 
   it('renders approved photos returned by worker', async () => {

@@ -17,41 +17,16 @@ interface GalleryProps {
   workerBaseUrl?: string;
 }
 
-const stockPhotos = [
-  {
-    url: '/photos/pexels-mahmutyilmaz-34793912.jpg',
-    shortCaption: 'Elegant Reception',
-    longCaption: 'Beautiful moment at the reception venue with stunning decorations.',
-    uploaderName: 'Sarah Collins',
-  },
-  {
-    url: '/photos/pexels-tahaasamett-28531241.jpg',
-    shortCaption: 'Dancing & Joy',
-    longCaption: 'Everyone celebrating on the dance floor!',
-    uploaderName: 'Uncle Robert',
-  },
-  {
-    url: '/photos/pexels-eugenia-remark-5767088-15283479.jpg',
-    shortCaption: 'Ceremony Moments',
-    longCaption: 'A tender moment during the ceremony.',
-    uploaderName: 'Aunt Patricia',
-  },
-  {
-    url: '/photos/pexels-rockhillmarketing-410398.jpg',
-    shortCaption: 'Sunset Celebration',
-    longCaption: 'Golden hour photography of the happy couple.',
-    uploaderName: 'Great Aunt Hildy',
-  },
-];
-
-// Create 16 photos by cycling through stock photos
-const mockPhotos: Photo[] = Array.from({ length: 16 }).map((_, i) => {
-  const photo = stockPhotos[i % stockPhotos.length];
-  return {
-    ...photo,
-    shortCaption: photo.shortCaption + ' #' + (i + 1),
-  };
-});
+// Emoji placeholders shown before real photos load from the database
+const PLACEHOLDER_EMOJIS = ['👰', '🤵', '🎂', '💍', '❤️', '💒', '🥂', '🌸'];
+const mockPhotos: Photo[] = PLACEHOLDER_EMOJIS.map((emoji, i) => ({
+  url: `emoji:${emoji}`,
+  shortCaption: 'Your photo here!',
+  longCaption: 'Photos shared by guests will appear here after the wedding.',
+  uploaderName: '',
+  photoId: undefined,
+  loveCount: 0,
+}));
 
 export default function Gallery({ photos = null, workerBaseUrl = '' }: GalleryProps) {
   const resolvedPhotos = photos ?? mockPhotos;
@@ -143,28 +118,36 @@ export default function Gallery({ photos = null, workerBaseUrl = '' }: GalleryPr
           const loveCount = getLoveCount(photo);
           const isLoved = photo.photoId ? lovedIds.has(photo.photoId) : false;
           const showLoveBtn = Boolean(photo.photoId && workerBaseUrl);
+          const isEmoji = photo.url.startsWith('emoji:');
+          const emojiChar = isEmoji ? photo.url.replace('emoji:', '') : null;
           return (
             <figure
               key={i}
-              className="gallery-thumbnail"
-              onClick={() => handlePhotoClick(photo)}
-              role="button"
-              tabIndex={0}
+              className={`gallery-thumbnail${isEmoji ? ' gallery-thumbnail--placeholder' : ''}`}
+              onClick={() => !isEmoji && handlePhotoClick(photo)}
+              role={isEmoji ? 'presentation' : 'button'}
+              tabIndex={isEmoji ? -1 : 0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (!isEmoji && (e.key === 'Enter' || e.key === ' ')) {
                   handlePhotoClick(photo);
                 }
               }}
             >
-              <img
-                src={photo.url}
-                alt={photo.shortCaption}
-                className="gallery-image"
-              />
+              {isEmoji ? (
+                <div className="gallery-emoji-placeholder" aria-hidden="true">
+                  {emojiChar}
+                </div>
+              ) : (
+                <img
+                  src={photo.url}
+                  alt={photo.shortCaption}
+                  className="gallery-image"
+                />
+              )}
               <figcaption className="gallery-caption">
                 {photo.shortCaption}
               </figcaption>
-              <div className="gallery-thumbnail-overlay">Click to expand</div>
+              {!isEmoji && <div className="gallery-thumbnail-overlay">Click to expand</div>}
               {showLoveBtn && (
                 <button
                   className={`gallery-love-btn${isLoved ? ' loved' : ''}`}

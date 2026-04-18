@@ -1,6 +1,6 @@
 // PalettePicker Component - allows users to select from 4 color palettes
 import { PALETTES, PALETTE_NAMES, PaletteName, Palette } from '../lib/palettes';
-import styles from '../styles/palette-picker.module.css';
+import styles from '../styles/components/palette-picker.module.css';
 
 interface PalettePickerProps {
   selected: PaletteName;

@@ -33,6 +33,9 @@ export default function Document() {
             z-index: -1;
           }
         `}</style>
+        {/* Add favicon and tab title */}
+        <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 36 36'><text y='32' font-size='32'>🍰</text></svg>" />
+        <title>John and Crystal May 4Ever</title>
       </Head>
       <body className="font-sans">
         <Main />

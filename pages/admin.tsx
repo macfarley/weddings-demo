@@ -362,6 +362,27 @@ export default function AdminPage() {
             Pending photos: {stats.pending_photos} · Pending guestbook: {stats.pending_guestbook}
           </p>
 
+          {/* Quick links */}
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
+            <a
+              href="/qrcodeflyer"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-block',
+                padding: '0.45rem 1.1rem',
+                borderRadius: '2rem',
+                border: `2px solid ${palette.primary}`,
+                color: palette.primary,
+                fontWeight: 'bold',
+                textDecoration: 'none',
+                fontSize: '0.875rem',
+              }}
+            >
+              🖨️ Venue Flyer (PDF)
+            </a>
+          </div>
+
           <div className="admin-url-row">
             <input
               type="url"

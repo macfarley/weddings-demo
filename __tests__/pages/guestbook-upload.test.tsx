@@ -48,7 +48,7 @@ describe('Guestbook + upload public flows', () => {
     render(<GuestbookPage />);
 
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'John' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'May' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'May' } });
     fireEvent.change(screen.getByPlaceholderText(/share your well wishes/i), { target: { value: 'Congrats to you both!' } });
 
     fireEvent.click(screen.getByRole('button', { name: /sign guestbook/i }));
@@ -68,7 +68,7 @@ describe('Guestbook + upload public flows', () => {
     expect(fileInput).toBeInTheDocument();
     fireEvent.change(fileInput, { target: { files: [file] } });
     fireEvent.change(screen.getByPlaceholderText(/first name/i), { target: { value: 'John' } });
-    fireEvent.change(screen.getByPlaceholderText(/last name or nickname/i), { target: { value: 'May' } });
+    fireEvent.change(screen.getByPlaceholderText(/uncle tony/i), { target: { value: 'May' } });
     fireEvent.change(screen.getByPlaceholderText(/e.g., 'cutting the cake'/i), { target: { value: 'First Dance' } });
 
     fireEvent.click(screen.getByRole('button', { name: /upload photo & message/i }));

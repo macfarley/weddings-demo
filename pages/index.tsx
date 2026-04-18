@@ -8,7 +8,7 @@ export default function HomePage() {
 		<div className="page-container">
 			<main className="main-content">
 				<section
-					className="section-full"
+					className="section-full home-section"
 					style={{
 						color: palette.text,
 						borderColor: palette.primary,
@@ -37,33 +37,44 @@ export default function HomePage() {
 						<h2 className="section-title" style={{ color: palette.primary }}>
 							Explore
 						</h2>
-						<div className="event-details-grid">
-							<article className="event-detail-card">
-								<span className="event-detail-label" style={{ color: palette.primary }}>Event Details</span>
-								<p className="event-detail-content">Schedule, venue details, and key wedding-day info.</p>
-								<Link className="event-detail-link" style={{ color: palette.primary }} href="/program">View Program</Link>
-							</article>
-
-							<article className="event-detail-card">
-								<span className="event-detail-label" style={{ color: palette.primary }}>Gallery</span>
-								<p className="event-detail-content">Approved photos from guests and wedding moments.</p>
-								<Link className="event-detail-link" style={{ color: palette.primary }} href="/gallery">Open Gallery</Link>
-							</article>
-
-							<article className="event-detail-card">
-								<span className="event-detail-label" style={{ color: palette.primary }}>Guestbook</span>
-								<p className="event-detail-content">Leave a message for the couple and read approved notes.</p>
-								<Link className="event-detail-link" style={{ color: palette.primary }} href="/guestbook">Open Guestbook</Link>
-							</article>
-
-							<article className="event-detail-card">
-								<span className="event-detail-label" style={{ color: palette.primary }}>Send Your Photos</span>
-								<p className="event-detail-content">Upload your photos for moderation and gallery publishing.</p>
-								<Link className="event-detail-link" style={{ color: palette.primary }} href="/sendyourphotos">Upload Photos</Link>
-							</article>
+						<div className="explore-stoplight">
+							{[
+								{ href: '/program',        label: 'Event Program',      desc: 'Schedule, venue details, and key wedding-day info.',        variant: 'red' },
+								{ href: '/about',          label: 'About the Couple',   desc: 'Learn about John & Crystal and their journey together.',    variant: 'red' },
+								{ href: '/gallery',        label: 'Photo Gallery',      desc: 'Approved photos from guests and wedding moments.',          variant: 'yellow' },
+								{ href: '/guestbook',      label: 'Sign the Guestbook', desc: 'Leave a message for the couple and read approved notes.',   variant: 'green' },
+								{ href: '/sendyourphotos', label: 'Send Your Photos',   desc: 'Upload your own photos to be added to the gallery.',        variant: 'green' },
+							].map(({ href, label, desc, variant }) => (
+								<Link key={href} href={href} className={`explore-pill explore-pill--${variant}`}>
+									<span className="explore-pill-label">{label}</span>
+									<span className="explore-pill-desc">{desc}</span>
+								</Link>
+							))}
 						</div>
 					</section>
-				</section>
+				{/* Venue flyer PDF link */}
+				<section style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+					<p style={{ color: palette.text, marginBottom: '0.75rem', fontSize: '0.95rem' }}>
+						Printing flyers for the venue? Download a shareable QR code card.
+					</p>
+					<Link
+						href="/qrcodeflyer"
+						target="_blank"
+						rel="noopener noreferrer"
+						style={{
+							display: 'inline-block',
+							padding: '0.55rem 1.4rem',
+							borderRadius: '2rem',
+							border: `2px solid ${palette.primary}`,
+							color: palette.primary,
+							fontWeight: 'bold',
+							textDecoration: 'none',
+							fontSize: '0.95rem',
+						}}
+					>
+						🖨️ Open Venue Flyer (PDF)
+					</Link>
+				</section>				</section>
 			</main>
 		</div>
 	);

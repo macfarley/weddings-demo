@@ -14,12 +14,6 @@ export default function About() {
     color: palette.primary,
   };
 
-  const creatorLinkStyle = {
-    color: palette.primary,
-    backgroundColor: palette.secondary,
-    borderColor: palette.primary,
-  };
-
   return (
     <>
       <Head>
@@ -188,42 +182,6 @@ export default function About() {
                   </p>
                 </div>
               </div>
-            </div>
-
-            {/* Creator Credit Section */}
-            <div className="about-creator-section">
-              <h3 style={{ color: palette.text, marginBottom: '1rem', fontSize: '1.1rem' }}>
-                About the Creator
-              </h3>
-              <div className="about-creator-text" style={{ color: palette.text }}>
-                <p>
-                  This beautiful wedding site was created by{' '}
-                  <strong style={{ color: palette.primary }}>Mac McCoy</strong>, a web
-                  developer who specializes in creating custom, elegant websites for every
-                  occasion.
-                </p>
-                <p style={{ marginTop: '1rem', fontSize: '0.9rem', opacity: 0.8 }}>
-                  Whether you need a wedding site, portfolio, business website, or anything in
-                  between, Mac can build exactly what you need.
-                </p>
-              </div>
-              <a
-                href="https://www.sitesbymac.dev"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="about-creator-link"
-                style={creatorLinkStyle}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.backgroundColor = palette.primary;
-                  e.currentTarget.style.color = palette.secondary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.backgroundColor = palette.secondary;
-                  e.currentTarget.style.color = palette.primary;
-                }}
-              >
-                Visit SitesbyMac.dev
-              </a>
             </div>
           </div>
         </div>

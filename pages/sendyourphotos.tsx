@@ -223,7 +223,7 @@ export default function SendYourPhotos() {
 
       {/* Submission Form */}
       <div
-        className="photo-guestbook-form-section"
+        className="photo-guestbook-form-section form-section--go"
         style={{
           backgroundColor: palette.secondary,
           borderColor: palette.primary,
@@ -360,7 +360,7 @@ export default function SendYourPhotos() {
               className="form-input"
               value={familyName}
               onChange={(e) => setFamilyName(e.target.value.slice(0, 50))}
-              placeholder="Last name or nickname"
+              placeholder="e.g. Uncle Tony, Nana Collins, Auntie Gina, Cousin Pookie"
               maxLength={50}
               disabled={isSubmitting}
               style={{

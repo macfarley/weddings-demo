@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
+import '../styles/pages/guestbook.css';
 
 interface GuestbookEntry {
   id: string;
@@ -261,7 +262,6 @@ export default function GuestbookPublic() {
       <div
         className="guestbook-hero-card"
         style={{
-          backgroundColor: palette.secondary,
           borderColor: palette.primary,
           color: palette.text,
         }}
@@ -275,83 +275,59 @@ export default function GuestbookPublic() {
         <p>
           Your message will appear below and become part of our permanent wedding keepsake. We can't wait to read all your kind words!
         </p>
+        <a href="#guestbook-form" className="hero-cta-link" style={{ color: palette.primary, borderColor: palette.primary }}>
+          ↓ Sign the Guestbook
+        </a>
       </div>
 
-      {/* Existing Entries */}
-      {entries.length > 0 && (
-        <div className="guestbook-entries-section">
-          <h2 className="guestbook-entries-title" style={{ color: palette.primary }}>
-            Guest Messages ({entries.length})
-          </h2>
-          <div className="guestbook-entries-container">
-            {/* Bride's Side */}
-            <div className="guestbook-side">
-              <h3 className="guestbook-side-title" style={{ color: palette.primary }}>
-                Bride's Side ({entries.filter((e) => e.side === 'bride').length})
-              </h3>
-              <div className="guestbook-entries-list">
-                {entries
-                  .filter((e) => e.side === 'bride')
-                  .map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="guestbook-entry"
-                      style={{
-                        backgroundColor: palette.secondary,
-                        borderLeftColor: palette.highlight,
-                      }}
-                    >
-                      <div className="guestbook-entry-name" style={{ color: palette.text }}>
-                        {entry.name}
-                      </div>
-                      <div className="guestbook-entry-family" style={{ color: palette.text }}>
-                        {entry.familyName}
-                      </div>
-                      <div className="guestbook-entry-message" style={{ color: palette.text }}>
-                        {entry.message}
-                      </div>
-                    </div>
-                  ))}
-              </div>
+      {/* Racetrack Entries */}
+      <div className="guestbook-entries-section">
+        <h2 className="guestbook-entries-title" style={{ color: palette.primary }}>
+          {entries.length > 0 ? `Guest Messages (${entries.length})` : 'Be the first to sign!'}
+        </h2>
+        <div className="racetrack-road">
+          {/* Bride's Lane */}
+          <div className="racetrack-lane">
+            <div className="racetrack-lane-header">
+              👰 Bride's Side ({entries.filter((e) => e.side === 'bride').length})
             </div>
+            {entries
+              .filter((e) => e.side === 'bride')
+              .map((entry) => (
+                <div key={entry.id} className="car-card bride-car">
+                  <div className="car-card-inner">
+                    <div className="car-card-name">{entry.name}</div>
+                    <div className="car-card-family">{entry.familyName}</div>
+                    <div className="car-card-message">{entry.message}</div>
+                  </div>
+                </div>
+              ))}
+          </div>
 
-            {/* Groom's Side */}
-            <div className="guestbook-side">
-              <h3 className="guestbook-side-title" style={{ color: palette.primary }}>
-                Groom's Side ({entries.filter((e) => e.side === 'groom').length})
-              </h3>
-              <div className="guestbook-entries-list">
-                {entries
-                  .filter((e) => e.side === 'groom')
-                  .map((entry) => (
-                    <div
-                      key={entry.id}
-                      className="guestbook-entry"
-                      style={{
-                        backgroundColor: palette.secondary,
-                        borderLeftColor: palette.highlight,
-                      }}
-                    >
-                      <div className="guestbook-entry-name" style={{ color: palette.text }}>
-                        {entry.name}
-                      </div>
-                      <div className="guestbook-entry-family" style={{ color: palette.text }}>
-                        {entry.familyName}
-                      </div>
-                      <div className="guestbook-entry-message" style={{ color: palette.text }}>
-                        {entry.message}
-                      </div>
-                    </div>
-                  ))}
-              </div>
+          {/* Groom's Lane */}
+          <div className="racetrack-lane">
+            <div className="racetrack-lane-header">
+              🤵 Groom's Side ({entries.filter((e) => e.side === 'groom').length})
             </div>
+            {entries
+              .filter((e) => e.side === 'groom')
+              .map((entry) => (
+                <div key={entry.id} className="car-card groom-car">
+                  <div className="car-card-inner">
+                    <div className="car-card-name">{entry.name}</div>
+                    <div className="car-card-family">{entry.familyName}</div>
+                    <div className="car-card-message">{entry.message}</div>
+                  </div>
+                </div>
+              ))}
           </div>
         </div>
-      )}
+      </div>
 
       {/* Submission Form */}
       <div
-        className="guestbook-form-section"
+        id="guestbook-form"
+        className="guestbook-form-section form-section--go"
         style={{
           backgroundColor: palette.secondary,
           borderColor: palette.primary,
@@ -446,7 +422,7 @@ export default function GuestbookPublic() {
               className="form-input"
               value={familyName}
               onChange={(e) => setFamilyName(e.target.value.slice(0, 50))}
-              placeholder="Last name or nickname"
+              placeholder="e.g. Uncle Tony, Nana Collins, Auntie Gina, Cousin Pookie"
               maxLength={50}
               disabled={isSubmitting}
               style={{

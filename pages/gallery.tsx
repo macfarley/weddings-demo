@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import Gallery, { type Photo } from '../components/Gallery';
 import { getWeddingSlug } from '../lib/supabase';
+import '../styles/pages/gallery.css';
 
 type WorkerPhoto = {
   id?: string | null;
@@ -103,8 +104,8 @@ export default function GalleryPage() {
   }, [workerBaseUrl]);
   
   return (
-    <div className="page-container">
-      <main className="main-content">
+    <div className="gallery-page">
+      <div className="gallery-card fade-out">
         <section
           className="section-full gallery-page-container"
           style={{
@@ -148,7 +149,7 @@ export default function GalleryPage() {
           ) : null}
           <Gallery photos={sortedPhotos} workerBaseUrl={workerBaseUrl} />
         </section>
-      </main>
+      </div>
     </div>
   );
 }

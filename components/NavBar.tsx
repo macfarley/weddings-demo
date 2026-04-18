@@ -3,8 +3,6 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 
-const ACTIVE_BG = 'rgba(200, 235, 205, 0.95)';
-
 export default function NavBar() {
 	const [isMenuOpen, setIsMenuOpen] = useState(false);
 	const { palette } = usePalette();
@@ -31,23 +29,18 @@ export default function NavBar() {
 					{/* Desktop links */}
 				<div className="navbar-links">
 					{[
-						{ href: '/', label: 'Home' },
-						{ href: '/gallery', label: 'Gallery' },
-						{ href: '/guestbook', label: 'Guestbook' },
-						{ href: '/about', label: 'About' },
-						{ href: '/program', label: 'Program' },
-						{ href: '/sendyourphotos', label: 'Send Your Photos' },
-					].map(({ href, label }) => (
+						{ href: '/program',       label: 'Event Program',      variant: 'red' },
+						{ href: '/about',         label: 'About the Couple',   variant: 'red' },
+						{ href: '/gallery',       label: 'Photo Gallery',      variant: 'yellow' },
+						{ href: '/guestbook',     label: 'Sign the Guestbook', variant: 'green' },
+						{ href: '/sendyourphotos',label: 'Send Your Photos',   variant: 'green' },
+					].map(({ href, label, variant }) => (
 						<Link
 							key={href}
 							href={href}
-							className="nav-link"
+							className={`nav-link nav-link--${variant}${isActive(href) ? ' nav-link--active' : ''}`}
 							aria-current={isActive(href) ? 'page' : undefined}
-							style={{
-								color: palette.text,
-								borderColor: isActive(href) ? '#111111' : palette.primary,
-								backgroundColor: isActive(href) ? ACTIVE_BG : undefined,
-							}}
+							style={{ color: palette.text }}
 						>{label}</Link>
 					))}
 				</div>
@@ -71,22 +64,17 @@ export default function NavBar() {
 				<div className="navbar-menu">
 					<ul>
 						{[
-							{ href: '/', label: 'Home' },
-							{ href: '/gallery', label: 'Gallery' },
-							{ href: '/guestbook', label: 'Guestbook' },
-							{ href: '/about', label: 'About' },
-							{ href: '/program', label: 'Program' },
-							{ href: '/sendyourphotos', label: 'Send Your Photos' },
-						].map(({ href, label }) => (
+							{ href: '/program',        label: 'Event Program',      variant: 'red' },
+							{ href: '/about',          label: 'About the Couple',   variant: 'red' },
+							{ href: '/gallery',        label: 'Photo Gallery',      variant: 'yellow' },
+							{ href: '/guestbook',      label: 'Sign the Guestbook', variant: 'green' },
+							{ href: '/sendyourphotos', label: 'Send Your Photos',   variant: 'green' },
+						].map(({ href, label, variant }) => (
 							<li key={href}><Link
 								href={href}
-								className="nav-link"
+								className={`nav-link nav-link--${variant}${isActive(href) ? ' nav-link--active' : ''}`}
 								aria-current={isActive(href) ? 'page' : undefined}
-								style={{
-									color: palette.text,
-									borderColor: isActive(href) ? '#111111' : palette.primary,
-									backgroundColor: isActive(href) ? ACTIVE_BG : undefined,
-								}}
+								style={{ color: palette.text }}
 							>{label}</Link></li>
 						))}
 					</ul>
@@ -97,14 +85,7 @@ export default function NavBar() {
 			<style jsx>{`
 				.nav-link:hover,
 				.nav-link:focus {
-					background-color: ${palette.primary};
 					color: white;
-					font-weight: bold;
-					border-width: 4px;
-					box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-				}
-				.nav-link:focus {				outline: none;
-				box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.1);
 			}
 		`}</style>
 	</nav>

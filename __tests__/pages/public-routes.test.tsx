@@ -38,6 +38,7 @@ describe('Public page routes', () => {
     process.env.NEXT_PUBLIC_WORKER_BASE_URL = savedUrl;
 
     expect(screen.getByText('Gallery')).toBeInTheDocument();
-    expect(screen.getAllByRole('button').length).toBeGreaterThan(0);
+    // Mock photos render as emoji placeholder tiles (role="presentation")
+    expect(screen.getAllByRole('presentation').length).toBeGreaterThan(0);
   });
 });

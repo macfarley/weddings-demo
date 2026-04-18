@@ -1,6 +1,70 @@
 # Dev Log
 
-## 2026-04-16
+## 2026-04-18
+
+### Summary
+Visual identity overhaul — stoplight CTA theme, racetrack guestbook, QR code flyer, shared footer, and gallery emoji placeholders. Full test/build pass before deploy.
+
+### Changes This Session
+
+**Favicon + tab title**
+- `pages/_document.tsx`: wedding cake emoji SVG data-URI favicon; `<title>John and Crystal May 4Ever</title>`
+
+**Styles folder reorganization**
+- Moved `styles/palette-picker.module.css` → `styles/components/palette-picker.module.css`
+- Created `styles/pages/` and `styles/components/` subdirectory splits (CSS files were previously at the root of `styles/`)
+- Updated imports in `gallery.tsx`, `guestbook.tsx`, and `PalettePicker.tsx`
+- Added `types/styles.d.ts` CSS module declaration
+
+**Guestbook — racetrack redesign**
+- `pages/guestbook.tsx` + `styles/pages/guestbook.css`: full racetrack road layout with bride/groom lane columns, car-shaped message cards (bride-car / groom-car with color-coded top borders)
+- Hero card: fade-to-transparent gradient effect; `↓ Sign the Guestbook` CTA anchor pill
+- Form section: green "go" theme (`form-section--go`); semantic family name placeholder text
+
+**Navbar — stoplight overhaul**
+- `components/NavBar.tsx`: removed Home link; renamed all links ("Event Program", "About the Couple", "Photo Gallery", "Sign the Guestbook", "Send Your Photos")
+- Each link gets a stoplight variant: `red`, `red`, `yellow`, `green`, `green`
+- `styles/components/navbar.css`: `.nav-link--red/yellow/green` classes with glow effects
+
+**Gallery — emoji wedding placeholders**
+- `components/Gallery.tsx`: replaced 16-item stock-photo mock with 8 `emoji:` protocol tiles (👰🤵🎂💍❤️💒🥂🌸)
+- Emoji tiles render as `role="presentation"` figures (not clickable, no love button)
+- `styles/globals.css`: `.gallery-emoji-placeholder` tile CSS
+
+**Forms — green "go" theme + semantic hint text**
+- `pages/guestbook.tsx` + `pages/sendyourphotos.tsx`: `form-section--go` green border/tint on form sections
+- Family name field placeholder changed to `"e.g. Uncle Tony, Nana Collins, Auntie Gina, Cousin Pookie"`
+
+**QR Code Flyer — new page**
+- `pages/qrcodeflyer.tsx`: printable venue flyer with `react-qr-code` pointing to `/sendyourphotos`
+- Heart border (❤️ pseudo-elements), step row, SitesbyMac footer
+- Auto-triggers `window.print()` on load (600ms delay)
+- Print CSS: letter-size `@page`, `-webkit-print-color-adjust: exact`
+- Flyer links added to `pages/index.tsx` and `pages/admin.tsx`
+
+**Homepage — stoplight explore pills**
+- `pages/index.tsx` + `styles/pages/index.css`: 2×2 card grid replaced with single-column vertical stoplight pill list (mirrors nav order and colors)
+- `home-section` class for above-fold compact padding
+
+**Shared SiteFooter**
+- `components/SiteFooter.tsx`: "About the Creator" section with SitesbyMac.dev + contact email buttons
+- Mounted in `pages/_app.tsx` (all routes except `/under-construction`)
+- Removed duplicate "About the Creator" block from `pages/about.tsx`
+
+**Tests**
+- Fixed 7 broken placeholder-text assertions (`/last name or nickname/i` → `/uncle tony/i`) in `guestbook-validation.test.tsx` and `guestbook-upload.test.tsx`
+- Fixed 2 broken gallery role assertions (`getAllByRole('button')` → `getAllByRole('presentation')`) in `gallery-worker.test.tsx` and `public-routes.test.tsx`
+- Added `__tests__/pages/new-components.test.tsx` covering SiteFooter, NavBar variants, and QRCodeFlyer (11 new tests)
+
+### Build Validation
+```
+npm test        # ✅ 28/28 passing (6 suites)
+npm run build   # ✅ clean — 17 static routes
+```
+
+---
+
+
 
 ### Summary
 Major UX polish pass, love-reactions feature shipped, gallery bug fixed, two-tier admin auth, auto-moderation, and full deployment push. All commits since the 2026-04-15 launch log.

@@ -15,13 +15,15 @@ Live at: [john-and-crystal-may.wedding](https://www.john-and-crystal-may.wedding
 
 ## What's live
 
-- Public homepage with links to all guest-facing pages
+- Public homepage with vertical stoplight pill navigation (Event Program, About, Gallery, Guestbook, Send Photos)
 - About, Program, Event Details, Gallery, Guestbook, Registry, Contact
 - **Send Your Photos** (`/sendyourphotos`) — guests upload photos directly to Supabase Storage; metadata rows land in `photos` with `status = pending`
-- **Guestbook** (`/guestbook`) — guests submit messages; entries land in `guestbook_entries`
-- **Gallery** (`/gallery`) — shows Worker-approved photos with signed URLs
+- **Guestbook** (`/guestbook`) — racetrack road layout with bride/groom lane columns; car-card entries; guests submit messages that land in `guestbook_entries`
+- **Gallery** (`/gallery`) — shows Worker-approved photos with signed URLs; emoji wedding-tile placeholders when no photos are live
+- **QR Code Flyer** (`/qrcodeflyer`) — printable venue flyer with QR code linking to `/sendyourphotos`; auto-triggers browser print dialog
 - **Admin** (`/admin`) — password-gated moderation UI for approving/rejecting photos and guestbook entries
 - Palette/theming context (locked to bride-selected scheme)
+- Shared `SiteFooter` component shown on all pages (creator info / SitesbyMac.dev)
 
 ## Architecture
 

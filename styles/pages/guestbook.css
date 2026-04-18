@@ -1,4 +1,365 @@
-/* Guestbook page styles */
+/* === GUESTBOOK PAGE === */
+
+.guestbook-public-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 2rem;
+  gap: 2rem;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+/* === HEADER === */
+.guestbook-header {
+  text-align: center;
+}
+.guestbook-header h1 {
+  font-size: 2.25rem;
+  font-weight: bold;
+  font-family: 'Dancing Script', cursive;
+  margin-bottom: 0.5rem;
+}
+
+/* === HERO CARD — fades top to transparent at bottom === */
+.guestbook-hero-card {
+  width: 100%;
+  max-width: 700px;
+  background: linear-gradient(
+    to bottom,
+    rgba(255, 248, 240, 0.96) 0%,
+    rgba(255, 248, 240, 0.65) 60%,
+    rgba(255, 248, 240, 0) 100%
+  );
+  border: 2px solid;
+  border-radius: 0.75rem;
+  padding: 2rem 2.5rem 3rem;
+  text-align: center;
+}
+.guestbook-hero-card h2 {
+  font-size: 1.75rem;
+  font-weight: bold;
+  font-family: 'Dancing Script', cursive;
+  margin-bottom: 1rem;
+}
+.guestbook-hero-card p {
+  margin-bottom: 0.75rem;
+  line-height: 1.6;
+}
+
+/* CTA down-arrow link */
+.hero-cta-link {
+  display: inline-block;
+  margin-top: 1.25rem;
+  padding: 0.55rem 1.5rem;
+  background: transparent;
+  border: 2px solid;
+  border-radius: 2rem;
+  font-weight: bold;
+  font-size: 1.05rem;
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  transition: background 200ms, color 200ms;
+}
+.hero-cta-link:hover {
+  background: rgba(0, 0, 0, 0.07);
+}
+
+/* === ENTRIES SECTION === */
+.guestbook-entries-section {
+  width: 100%;
+}
+.guestbook-entries-title {
+  font-size: 1.2rem;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 0.75rem;
+  font-family: 'Dancing Script', cursive;
+}
+
+/* === RACETRACK ROAD === */
+.racetrack-road {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #2a2a2a;
+  border-left: 8px solid #f5c518;
+  border-right: 8px solid #f5c518;
+  border-top: 5px solid #f5c518;
+  border-bottom: 5px solid #f5c518;
+  border-radius: 4px;
+  padding-bottom: 1.5rem;
+  min-height: 100px;
+}
+
+/* White dashed center lane divider */
+.racetrack-road::before {
+  content: '';
+  position: absolute;
+  left: calc(50% - 2px);
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: repeating-linear-gradient(
+    to bottom,
+    white 0px,
+    white 18px,
+    transparent 18px,
+    transparent 36px
+  );
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* === LANES === */
+.racetrack-lane {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 0 0.4rem;
+}
+.racetrack-lane-header {
+  text-align: center;
+  color: #f5c518;
+  font-weight: bold;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding: 0.65rem 0 0.4rem;
+  border-bottom: 1px solid rgba(245, 197, 24, 0.3);
+  margin-bottom: 0.2rem;
+}
+
+/* === CAR CARDS === */
+.car-card {
+  position: relative;
+  border: 2px solid #666;
+  border-radius: 10px;
+  margin: 0.55rem 0.35rem;
+  background: #f7f2e4;
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+}
+
+/* Hood bar at top of card */
+.car-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18%;
+  right: 18%;
+  height: 5px;
+  background: rgba(55, 55, 55, 0.4);
+  border-radius: 0 0 5px 5px;
+}
+
+/* Bumper bar at bottom of card */
+.car-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 10%;
+  right: 10%;
+  height: 4px;
+  background: rgba(55, 55, 55, 0.3);
+  border-radius: 4px 4px 0 0;
+}
+
+/* Bride's cars: rose accent stripe */
+.car-card.bride-car {
+  border-top: 3px solid #d97095;
+}
+
+/* Groom's cars: steel blue accent stripe */
+.car-card.groom-car {
+  border-top: 3px solid #6a9dbf;
+}
+
+.car-card-inner {
+  padding: 0.85rem 0.8rem 1rem;
+}
+.car-card-name {
+  font-weight: bold;
+  font-size: 0.95rem;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+.car-card-family {
+  font-size: 0.78rem;
+  color: #555;
+  margin-bottom: 0.45rem;
+}
+.car-card-message {
+  font-size: 0.87rem;
+  color: #2a2a2a;
+  line-height: 1.55;
+  font-style: italic;
+}
+
+/* === FORM SECTION === */
+.guestbook-form-section {
+  width: 100%;
+  max-width: 600px;
+  border: 2px solid;
+  border-radius: 0.75rem;
+  padding: 2rem;
+  scroll-margin-top: 4rem;
+}
+.guestbook-form-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 1.25rem;
+  font-family: 'Dancing Script', cursive;
+  text-align: center;
+}
+.guestbook-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-error {
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+.form-error-list {
+  list-style: disc;
+  padding-left: 1.25rem;
+  color: #991b1b;
+  font-size: 0.9rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 0.75rem;
+}
+.form-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 0.3rem;
+}
+.form-label-required {
+  color: #e11d48;
+  margin-left: 0.15rem;
+}
+.form-label-hint {
+  font-weight: normal;
+  font-size: 0.78rem;
+  color: #888;
+  margin-left: 0.5rem;
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 0.5rem;
+  background-color: #f9fafb;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  transition: outline 200ms;
+  box-sizing: border-box;
+}
+.form-input:focus,
+.form-textarea:focus {
+  outline: 2px solid #ec4899;
+}
+.form-textarea {
+  height: 8rem;
+  resize: vertical;
+}
+
+.form-char-count {
+  font-size: 0.75rem;
+  text-align: right;
+  color: #888;
+  margin-top: 0.15rem;
+}
+.form-char-count.warning { color: #d97706; }
+.form-char-count.critical { color: #dc2626; font-weight: bold; }
+
+.form-side-selector {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+.form-side-btn {
+  flex: 1;
+  padding: 0.5rem 1rem;
+  border: 2px solid;
+  border-radius: 0.5rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  transition: background 200ms, color 200ms;
+}
+.form-side-btn:focus {
+  outline: 2px solid #ec4899;
+  outline-offset: 2px;
+}
+
+.form-button-group {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+.form-submit-btn {
+  flex: 1;
+  padding: 0.6rem 1.5rem;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: opacity 200ms;
+}
+.form-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+.form-reset-btn {
+  padding: 0.6rem 1.25rem;
+  background: transparent;
+  border: 1px solid #9ca3af;
+  border-radius: 0.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 200ms;
+}
+.form-reset-btn:hover { background: #f3f4f6; }
+.form-reset-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* === RESPONSIVE === */
+@media (max-width: 700px) {
+  .guestbook-public-container {
+    padding: 1rem;
+    gap: 1.25rem;
+  }
+  .guestbook-hero-card {
+    padding: 1.5rem 1.25rem 2.5rem;
+  }
+  /* Stack lanes vertically on mobile */
+  .racetrack-road {
+    grid-template-columns: 1fr;
+  }
+  .racetrack-road::before {
+    display: none;
+  }
+  .racetrack-lane + .racetrack-lane {
+    border-top: 5px solid #f5c518;
+  }
+  .guestbook-form-section {
+    padding: 1.25rem;
+  }
+}
 
 .guestbook-page-container {
   min-height: 100vh;
