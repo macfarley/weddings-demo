@@ -110,7 +110,7 @@ export default function Program() {
                 </a>
                 <a
                   className="program-btn program-btn--directions"
-                  href="https://www.google.com/maps/dir/?api=1&destination=Junior+Fair+Building,+Wapakoneta,+Ohio"
+                  href="https://www.google.com/maps?q=Auglaize+County+Fairgrounds,+1001+Fairview+Dr,+Wapakoneta,+OH+45895"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -128,7 +128,7 @@ export default function Program() {
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2990!2d-84.1940!3d40.5684!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x883f2e4c3e4c4c4b%3A0x1234567890abcdef!2sAuglaize+County+Fairgrounds%2C+Wapakoneta%2C+OH+45895!5e0!3m2!1sen!2sus!4v1"
+                  src="https://www.google.com/maps?q=Auglaize+County+Fairgrounds,+1001+Fairview+Dr,+Wapakoneta,+OH+45895&output=embed"
                 />
               </div>
             </div>
