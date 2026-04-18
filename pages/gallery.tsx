@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import Gallery, { type Photo } from '../components/Gallery';
 import { getWeddingSlug } from '../lib/supabase';
-import '../styles/pages/gallery.css';
 
 type WorkerPhoto = {
   id?: string | null;

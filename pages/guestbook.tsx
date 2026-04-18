@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
-import '../styles/pages/guestbook.css';
 
 interface GuestbookEntry {
   id: string;
