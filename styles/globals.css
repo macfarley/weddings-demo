@@ -175,7 +175,12 @@ a {
 .section-full {
   width: 100%;
   max-width: 42rem;
-  background-color: rgba(196, 196, 196, 0.87);
+  background: linear-gradient(
+    to bottom,
+    rgba(196, 196, 196, 0.87) 0%,
+    rgba(196, 196, 196, 0.87) 70%,
+    rgba(196, 196, 196, 0) 100%
+  );
   padding: 2rem;
   border-radius: 1rem;
   border-width: 3px;
@@ -369,7 +374,7 @@ a {
 /* ── Green "go" form theme ───────────────────────────────────────────────── */
 .form-section--go {
   border-color: #27ae60 !important;
-  background-color: rgba(39, 174, 96, 0.05) !important;
+  background-color: rgba(236, 253, 245, 0.97) !important;
   box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.15) !important;
 }
 .form-section--go .guestbook-form-title,

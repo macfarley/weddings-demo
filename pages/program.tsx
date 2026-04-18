@@ -97,6 +97,40 @@ export default function Program() {
             >
               <h1 style={{ color: palette.primary }}>Wedding Program</h1>
               <p>Friday, May 9, 2026 • Junior Fair Building, Wapakoneta, Ohio</p>
+
+              {/* Action buttons */}
+              <div className="program-action-buttons">
+                <a
+                  className="program-btn program-btn--calendar"
+                  href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=John+%26+Crystal+Wedding&dates=20260509T190000Z/20260510T020000Z&details=Wedding+ceremony+and+reception&location=Junior+Fair+Building,+Wapakoneta,+Ohio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  📅 Add to Google Calendar
+                </a>
+                <a
+                  className="program-btn program-btn--directions"
+                  href="https://www.google.com/maps/dir/?api=1&destination=Junior+Fair+Building,+Wapakoneta,+Ohio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  🧭 Get Directions
+                </a>
+              </div>
+
+              {/* Embedded map preview */}
+              <div className="program-map">
+                <iframe
+                  title="Junior Fair Building, Wapakoneta Ohio"
+                  width="100%"
+                  height="250"
+                  style={{ border: 0, borderRadius: '0.5rem', display: 'block' }}
+                  loading="lazy"
+                  allowFullScreen
+                  referrerPolicy="no-referrer-when-downgrade"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2990!2d-84.1940!3d40.5684!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x883f2e4c3e4c4c4b%3A0x1234567890abcdef!2sAuglaize+County+Fairgrounds%2C+Wapakoneta%2C+OH+45895!5e0!3m2!1sen!2sus!4v1"
+                />
+              </div>
             </div>
 
             {/* Ceremony */}

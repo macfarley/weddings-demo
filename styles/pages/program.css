@@ -26,6 +26,43 @@
   opacity: 0.9;
 }
 
+.program-action-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  justify-content: center;
+  margin-top: 1.25rem;
+}
+
+.program-btn {
+  display: inline-block;
+  padding: 0.6rem 1.25rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: opacity 150ms;
+}
+.program-btn:hover {
+  opacity: 0.85;
+}
+
+.program-btn--calendar {
+  background-color: #2d7ff9;
+  color: #fff;
+}
+
+.program-btn--directions {
+  background-color: #27ae60;
+  color: #fff;
+}
+
+.program-map {
+  margin-top: 1.25rem;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
 .program-section {
   max-width: 56rem;
   margin: 0 auto 2rem;
