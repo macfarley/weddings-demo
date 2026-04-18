@@ -10,13 +10,7 @@ export default function SiteFooter() {
           About the Creator
         </h3>
         <p className="site-footer-text">
-          This wedding site was created by{' '}
-          <strong style={{ color: palette.primary }}>Mac McCoy</strong>, a web developer
-          who specializes in custom, elegant websites for every occasion.
-        </p>
-        <p className="site-footer-subtext">
-          Whether you need a wedding site, portfolio, business site, or anything in between,
-          Mac can build exactly what you need.
+          Site by <strong style={{ color: palette.primary }}>Mac McCoy</strong> · custom wedding &amp; occasion sites
         </p>
         <div className="site-footer-links">
           <a
@@ -52,9 +46,6 @@ export default function SiteFooter() {
             Mac@sitesbymac.dev
           </a>
         </div>
-        <p className="site-footer-fine">
-          Contact with inquiries about your own custom site for any occasion or group.
-        </p>
       </div>
     </footer>
   );

@@ -61,15 +61,10 @@ export default function HomePage() {
 						href="/qrcodeflyer"
 						target="_blank"
 						rel="noopener noreferrer"
+						className="flyer-pill-btn"
 						style={{
-							display: 'inline-block',
-							padding: '0.55rem 1.4rem',
-							borderRadius: '2rem',
-							border: `2px solid ${palette.primary}`,
+							borderColor: palette.primary,
 							color: palette.primary,
-							fontWeight: 'bold',
-							textDecoration: 'none',
-							fontSize: '0.95rem',
 						}}
 					>
 						🖨️ Open Venue Flyer (PDF)

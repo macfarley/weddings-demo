@@ -110,7 +110,7 @@ export default function Program() {
                 </a>
                 <a
                   className="program-btn program-btn--directions"
-                  href="https://www.google.com/maps?q=Auglaize+County+Fairgrounds,+1001+Fairview+Dr,+Wapakoneta,+OH+45895"
+                  href="https://www.google.com/maps/place/Auglaize+County+Fairgrounds/@40.563757,-84.2132199,16z"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -128,7 +128,7 @@ export default function Program() {
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src="https://maps.google.com/maps?q=40.5681,-84.1944&z=16&output=embed"
+                  src="https://maps.google.com/maps?q=40.563757,-84.2132199&z=16&output=embed"
                 />
               </div>
             </div>
