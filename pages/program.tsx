@@ -128,7 +128,7 @@ export default function Program() {
                   loading="lazy"
                   allowFullScreen
                   referrerPolicy="no-referrer-when-downgrade"
-                  src="https://www.google.com/maps?q=Auglaize+County+Fairgrounds,+1001+Fairview+Dr,+Wapakoneta,+OH+45895&output=embed"
+                  src="https://maps.google.com/maps?q=40.5681,-84.1944&z=16&output=embed"
                 />
               </div>
             </div>
