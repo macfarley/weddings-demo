@@ -84,6 +84,7 @@ export default function SendYourPhotos() {
   const [toastMessage, setToastMessage] = useState('');
   const [showSizeHelp, setShowSizeHelp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const toLabelSlug = (value: string) => {
     const cleaned = value
@@ -251,6 +252,18 @@ export default function SendYourPhotos() {
                 Your Photo <span className="form-label-required">*</span>
                 <span className="form-label-hint">(JPEG, PNG, HEIC, HEIF • Max 5MB)</span>
               </label>
+              {/* Hidden native-camera input (capture=environment opens rear camera) */}
+              <input
+                ref={cameraInputRef}
+                id="cameraInput"
+                type="file"
+                accept="image/*"
+                capture="environment"
+                onChange={handleFileChange}
+                disabled={isSubmitting}
+                style={{ display: 'none' }}
+                aria-hidden="true"
+              />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -263,6 +276,16 @@ export default function SendYourPhotos() {
                   borderColor: palette.primary,
                 }}
               />
+              <button
+                type="button"
+                className="camera-btn"
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isSubmitting}
+                aria-label="Take a photo with your camera"
+                style={{ borderColor: palette.primary, color: palette.primary }}
+              >
+                📸 Take a Photo
+              </button>
               <p className="form-file-hint" style={{ color: palette.text, margin: '0.4rem 0 0' }}>
                 We can only accept photos up to 5MB.{' '}
                 <button

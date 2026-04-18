@@ -40,3 +40,4 @@ pnpm-debug.log*
 
 # Local test scripts (not for production tracking)
 supabase/pipeline_test.py
+tsconfig.tsbuildinfo
