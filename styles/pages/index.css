@@ -5,6 +5,8 @@
   /* Override global page-title to be more compact on home */
   font-size: 1.75rem !important;
   margin-bottom: 0.25rem !important;
+  overflow-wrap: break-word;
+  word-break: keep-all;
 }
 
 .section-description {
@@ -52,6 +54,7 @@
   text-decoration: none;
   transition: background 180ms, box-shadow 180ms, transform 120ms;
   cursor: pointer;
+  min-width: 0;
 }
 
 .explore-pill:hover {
@@ -69,8 +72,11 @@
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.2;
-  white-space: nowrap;
-  flex-shrink: 0;
+  white-space: normal;
+  word-break: keep-all;
+  overflow-wrap: break-word;
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 .explore-pill-desc {
