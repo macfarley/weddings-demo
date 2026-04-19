@@ -12,7 +12,7 @@ body {
   min-height: 100vh;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+  font-family: 'Montserrat', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
   line-height: 1.6;
   color: #111111;
 }
@@ -56,6 +56,13 @@ a {
 :focus-visible {
   outline: 3px solid #FFD659;
   outline-offset: 2px;
+}
+
+h1, h2, h3, h4, h5, h6,
+.hero-title, .page-title, .section-title {
+  font-family: 'Cormorant Garamond', Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  letter-spacing: 0.03em;
 }
 
 @media (prefers-reduced-motion: reduce) {

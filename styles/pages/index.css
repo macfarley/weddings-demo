@@ -22,6 +22,22 @@
   gap: 0.5rem;
 }
 
+/* Cake hero image */
+.home-cake-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 0.5rem 0 1rem;
+}
+
+.home-cake-img {
+  width: min(340px, 80vw);
+  height: auto;
+  border-radius: 0.75rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.18);
+  object-fit: cover;
+}
+
 /* Explore section */
 .event-details-section {
   max-width: 42rem !important;

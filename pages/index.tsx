@@ -26,14 +26,19 @@ export default function HomePage() {
 							`,
 						}}
 					>
-						John & Crystal&apos;s Wedding Website
+						John & Crystal May&apos;s Wedding Website
 					</h1>
 
-					<p className="section-description" style={{ color: palette.text }}>
-						Full site preview is now live while we keep refining final styles.
-					</p>
+				{/* Wedding cake hero image */}
+				<div className="home-cake-wrap">
+					<img
+						src="/photos/cake.png"
+						alt="A beautiful tiered wedding cake decorated with pink roses"
+						className="home-cake-img"
+					/>
+				</div>
 
-					<section className="event-details-section section-full" style={{ borderColor: palette.primary }}>
+				<section className="event-details-section section-full" style={{ borderColor: palette.primary }}>
 						<h2 className="section-title" style={{ color: palette.primary }}>
 							Explore
 						</h2>
