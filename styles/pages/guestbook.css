@@ -18,7 +18,7 @@
 .guestbook-header h1 {
   font-size: 2.25rem;
   font-weight: bold;
-  font-family: 'Dancing Script', cursive;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   margin-bottom: 0.5rem;
 }
 
@@ -40,7 +40,7 @@
 .guestbook-hero-card h2 {
   font-size: 1.75rem;
   font-weight: bold;
-  font-family: 'Dancing Script', cursive;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   margin-bottom: 1rem;
 }
 .guestbook-hero-card p {
@@ -75,7 +75,7 @@
   font-weight: bold;
   text-align: center;
   margin-bottom: 0.75rem;
-  font-family: 'Dancing Script', cursive;
+  font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 /* === RACETRACK ROAD === */
@@ -212,7 +212,7 @@
   font-size: 1.5rem;
   font-weight: bold;
   margin-bottom: 1.25rem;
-  font-family: 'Dancing Script', cursive;
+  font-family: 'Cormorant Garamond', Georgia, serif;
   text-align: center;
 }
 .guestbook-form {
@@ -386,7 +386,7 @@
   font-size: 1.875rem;
   font-weight: bold;
   margin-bottom: 1rem;
-  font-family: '"Dancing Script", cursive';
+  font-family: 'Cormorant Garamond', Georgia, serif;
 }
 
 .guestbook-form {
@@ -405,7 +405,7 @@
   border-radius: 0.5rem;
   background-color: #f9fafb;
   font-size: 1.2em;
-  font-family: '"Dancing Script", cursive';
+  font-family: 'Cormorant Garamond', Georgia, serif;
   outline: none;
   transition: all 200ms;
 }
@@ -423,7 +423,7 @@
   border: 1px solid #d1d5db;
   border-radius: 0.5rem;
   background-color: #f9fafb;
-  font-family: '"Dancing Script", cursive';
+  font-family: 'Cormorant Garamond', Georgia, serif;
   outline: none;
   transition: all 200ms;
 }
@@ -439,7 +439,7 @@
   color: white;
   border-radius: 0.5rem;
   font-weight: bold;
-  font-family: '"Dancing Script", cursive';
+  font-family: 'Cormorant Garamond', Georgia, serif;
   cursor: pointer;
   transition: all 200ms;
   border: none;
