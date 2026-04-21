@@ -21,6 +21,9 @@ out/
 # Dev logs (gitignored for development only)
 .devlog/
 
+# Internal client docs (not for version control)
+docs/collins-may-wedding-client-001.md
+
 # Editor
 .vscode/
 .idea/

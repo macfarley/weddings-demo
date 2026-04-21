@@ -9,67 +9,36 @@ interface ProgramItem {
 
 const ceremonyProgram: ProgramItem[] = [
   {
-    time: '3:45 PM',
-    event: 'Guests Arrive',
-    description: 'Please arrive early to find your seat',
-  },
-  {
     time: '4:00 PM',
-    event: 'Ceremony Begins',
-    description: 'Music and processional',
-  },
-  {
-    time: '4:15 PM',
-    event: 'Exchange of Vows',
-    description: 'Personal vows and rings',
-  },
-  {
-    time: '4:25 PM',
-    event: 'Pronouncement',
-    description: 'First kiss as a married couple!',
-  },
-  {
-    time: '4:30 PM',
-    event: 'Recessional',
-    description: 'Newlyweds exit',
+    event: 'Ceremony',
   },
 ];
 
 const receptionProgram: ProgramItem[] = [
   {
-    time: '5:30 PM',
-    event: 'Reception Begins',
-    description: 'Cocktails and appetizers',
+    time: '4:30 PM',
+    event: 'Cocktail Hour',
+    description: 'Pictures & mingling',
   },
   {
-    time: '6:00 PM',
-    event: 'Dinner Service',
-    description: 'Seated dinner',
+    time: '5:30 PM',
+    event: 'Wedding Party Introductions',
+  },
+  {
+    time: '5:45 PM',
+    event: 'Dinner',
   },
   {
     time: '6:45 PM',
-    event: 'Toasts & Speeches',
-    description: 'From family and friends',
+    event: 'Cut the Cake',
   },
   {
-    time: '7:15 PM',
+    time: '7:00 PM',
     event: 'First Dance',
-    description: 'Dancing begins!',
   },
   {
-    time: '7:30 PM',
-    event: 'Cake Cutting',
-    description: 'Dessert time',
-  },
-  {
-    time: '8:00 PM',
-    event: 'Open Dancing',
-    description: 'All night celebration',
-  },
-  {
-    time: '10:00 PM',
-    event: 'Closing Time',
-    description: 'Thanks for celebrating with us!',
+    time: '9:00 PM',
+    event: 'Send Off',
   },
 ];
 
