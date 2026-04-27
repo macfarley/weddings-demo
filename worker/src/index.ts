@@ -210,11 +210,13 @@ async function processPhotoAutomod(
 ): Promise<void> {
 	const supabase = getClient(env);
 
-	// Download raw image bytes using the service role key.
+	// Download a 512px-wide render instead of the raw original.
+	// The NSFW classifier works fine at this resolution and the render endpoint
+	// returns ~50-100 KB instead of the original 2-5 MB, cutting per-upload egress by ~98%.
 	let imageBytes: ArrayBuffer;
 	try {
 		const imgRes = await fetch(
-			`${env.SUPABASE_URL}/storage/v1/object/authenticated/${BUCKET}/${photo.storage_path}`,
+			`${env.SUPABASE_URL}/storage/v1/render/image/authenticated/${BUCKET}/${photo.storage_path}?width=512&quality=80`,
 			{ headers: { Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}` } },
 		);
 		if (!imgRes.ok) return; // fail open — can't fetch, leave as pending
@@ -325,7 +327,10 @@ async function listTrashPhotos(env: WorkerEnv): Promise<Response> {
 		const { data: signedData, error: signedError } = await supabase
 			.storage
 			.from(BUCKET)
-			.createSignedUrl(row.storage_path, 60 * 60);
+			.createSignedUrl(row.storage_path, 60 * 60, {
+				// Admin preview only — keep small to avoid wasting egress on rejected photos.
+				transform: { width: 400, quality: 60 },
+			});
 
 		const signedUrl = signedError || !signedData?.signedUrl
 			? null
@@ -344,6 +349,10 @@ async function listTrashPhotos(env: WorkerEnv): Promise<Response> {
 async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	const supabase = getClient(env);
 	const weddingSlug = (url.searchParams.get('wedding_slug') || '').trim();
+	const sort = url.searchParams.get('sort') === 'popular' ? 'popular' : 'newest';
+	const page = Math.max(0, parseInt(url.searchParams.get('page') || '0', 10) || 0);
+	const perPage = Math.min(100, Math.max(1, parseInt(url.searchParams.get('per_page') || '50', 10) || 50));
+	const offset = page * perPage;
 
 	// Try with love_count first (requires migration); fall back without it if the column is missing.
 	const baseSelect = 'id, wedding_slug, storage_path, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible';
@@ -351,20 +360,26 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	const buildQuery = (select: string) => {
 		let q = supabase
 			.from('photos')
-			.select(select)
+			.select(select, { count: 'exact' })
 			.eq('status', 'approved')
-			.eq('is_visible', true)
-			.order('created_at', { ascending: false })
-			.limit(500);
+			.eq('is_visible', true);
+
+		// Server-side sort: popular = love_count desc, newest = created_at desc.
+		if (sort === 'popular') {
+			q = q.order('love_count', { ascending: false }).order('created_at', { ascending: false });
+		} else {
+			q = q.order('created_at', { ascending: false });
+		}
+
 		if (weddingSlug) q = q.eq('wedding_slug', weddingSlug);
-		return q;
+		return q.range(offset, offset + perPage - 1);
 	};
 
-	let { data, error } = await buildQuery(`${baseSelect}, love_count`);
+	let { data, error, count } = await buildQuery(`${baseSelect}, love_count`);
 
 	// If love_count column doesn't exist yet (migration pending), retry without it.
 	if (error && error.message.includes('love_count')) {
-		({ data, error } = await buildQuery(baseSelect));
+		({ data, error, count } = await buildQuery(baseSelect));
 	}
 
 	if (error) {
@@ -372,30 +387,51 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	}
 
 	const rows = data || [];
+	const total = count ?? 0;
 	const signed = await Promise.all(rows.map(async (row) => {
-		const { data: signedData, error: signedError } = await supabase
-			.storage
-			.from(BUCKET)
-			.createSignedUrl(row.storage_path, 60 * 60, {
-				transform: { width: 600, quality: 70 },
-			});
+		// Create two signed URLs per photo:
+		// 1. thumbnail (400px/q65) — served in the gallery grid.
+		// 2. view/download (1200px/q80) — shown in the expanded viewer and offered as download.
+		// Both expire after 1 hour. Cloudflare caches the full response for 2 minutes.
+		const [thumbResult, viewResult] = await Promise.all([
+			supabase.storage.from(BUCKET).createSignedUrl(row.storage_path, 60 * 60, {
+				transform: { width: 400, quality: 65 },
+			}),
+			supabase.storage.from(BUCKET).createSignedUrl(row.storage_path, 60 * 60, {
+				transform: { width: 1200, quality: 80 },
+			}),
+		]);
 
-		const signedUrl = signedError || !signedData?.signedUrl
+		const thumbUrl = thumbResult.error || !thumbResult.data?.signedUrl
 			? null
-			: toAbsoluteUrl(env.SUPABASE_URL, signedData.signedUrl);
+			: toAbsoluteUrl(env.SUPABASE_URL, thumbResult.data.signedUrl);
+
+		const viewUrl = viewResult.error || !viewResult.data?.signedUrl
+			? null
+			: toAbsoluteUrl(env.SUPABASE_URL, viewResult.data.signedUrl);
 
 		const slug = toDownloadSlug(row);
-		const downloadUrl = signedUrl ? `${signedUrl}&download=${slug}.jpg` : null;
+		const downloadUrl = viewUrl ? `${viewUrl}&download=${slug}.jpg` : null;
 
 		return {
 			...row,
 			filename: getFilename(row.storage_path),
-			image_url: signedUrl,
+			image_url: thumbUrl,
+			view_url: viewUrl,
 			download_url: downloadUrl,
 		};
 	}));
 
-	return json({ data: signed }, 200);
+	// Cache at Cloudflare edge for 2 min so repeated page loads don't regenerate
+	// signed URLs on every request (each photo requires 2 Supabase API calls).
+	const body = JSON.stringify({ data: signed, total, page, per_page: perPage });
+	return new Response(body, {
+		status: 200,
+		headers: {
+			'content-type': 'application/json; charset=utf-8',
+			'Cache-Control': 'public, max-age=120, stale-while-revalidate=60',
+		},
+	});
 }
 
 // ---------------------------------------------------------------------------

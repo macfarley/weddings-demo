@@ -4,6 +4,7 @@ import ImageViewer from './ImageViewer';
 
 export interface Photo {
   url: string;
+  viewUrl?: string;
   downloadUrl?: string;
   shortCaption: string;
   longCaption: string;
@@ -169,7 +170,8 @@ export default function Gallery({ photos = null, workerBaseUrl = '' }: GalleryPr
       <ImageViewer
         isOpen={isViewerOpen}
         image={selectedImage ? {
-          src: selectedImage.url,
+          // Use the larger view URL in the modal; fall back to thumbnail if absent.
+          src: selectedImage.viewUrl || selectedImage.url,
           downloadUrl: selectedImage.downloadUrl,
           uploaderName: selectedImage.uploaderName,
           shortCaption: selectedImage.shortCaption,

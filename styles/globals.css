@@ -499,6 +499,39 @@ h1, h2, h3, h4, h5, h6,
   background: transparent;
 }
 
+/* ── Gallery pagination ─────────────────────────────────────────────────── */
+.gallery-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.gallery-page-btn {
+  border: 2px solid;
+  border-radius: 999px;
+  padding: 0.35rem 1.1rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: transparent;
+  transition: background-color 150ms, color 150ms, opacity 150ms;
+}
+
+.gallery-page-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.gallery-page-indicator {
+  font-size: 0.9rem;
+  font-weight: 600;
+  min-width: 7rem;
+  text-align: center;
+}
+
 /* ── Fluid safe container utility ───────────────────────────────────────── */
 /* Use on any inner card that must stay 90vw on mobile and never collapse.  */
 .safe-container {

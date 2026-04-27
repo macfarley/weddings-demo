@@ -269,7 +269,7 @@ export default function SendYourPhotos() {
               onChange={(e) => setHoneypot(e.target.value)}
             />
           </div>
-          {/* Photo Upload Section */}}
+          {/* Photo Upload Section */}
           <div>
             <div className="form-group">
               <label className="form-label" style={{ color: palette.text }}>
