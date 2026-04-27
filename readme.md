@@ -49,86 +49,70 @@ Contact **Mac McCoy** at [Mac@sitesbymac.dev](mailto:Mac@sitesbymac.dev) or visi
 
 ---
 
-## Stack
+---
 
-- **Next.js** (Pages Router + TypeScript) — frontend + routing
-- **Vercel** — hosting and deployment
-- **Supabase** — photo metadata (`photos` table), guestbook entries (`guestbook_entries` table), and photo file storage (`wedding-photos` bucket)
-- **Cloudflare Worker** — moderation API, approved-content reads, signed URL generation
-- **Cloudflare DNS** — domain routing
+## Developer Documentation
 
-## What's live
+**For full technical documentation, see [docs/DEVELOPER.md](docs/DEVELOPER.md).**  
+**For future site deployments, see [docs/templates/new-site-checklist.md](docs/templates/new-site-checklist.md).**
 
-- Public homepage with vertical stoplight pill navigation (Event Program, About, Gallery, Guestbook, Send Photos)
-- About, Program, Event Details, Gallery, Guestbook, Registry, Contact
-- **Send Your Photos** (`/sendyourphotos`) — guests upload photos directly to Supabase Storage; metadata rows land in `photos` with `status = pending`
-- **Guestbook** (`/guestbook`) — racetrack road layout with bride/groom lane columns; car-card entries; guests submit messages that land in `guestbook_entries`
-- **Gallery** (`/gallery`) — shows Worker-approved photos with signed URLs; emoji wedding-tile placeholders when no photos are live
-- **QR Code Flyer** (`/qrcodeflyer`) — printable venue flyer with QR code linking to `/sendyourphotos`; auto-triggers browser print dialog
-- **Admin** (`/admin`) — password-gated moderation UI for approving/rejecting photos and guestbook entries
-- Palette/theming context (locked to bride-selected scheme)
-- Shared `SiteFooter` component shown on all pages (creator info / SitesbyMac.dev)
-
-## Architecture
-
-```
-Guest browser
-  ├─ Photo upload ──► Supabase Storage (uploads/)
-  │                ──► Supabase DB (photos, status=pending)
-  ├─ Guestbook ────► Supabase DB (guestbook_entries)
-  └─ Gallery/GB reads ──► Cloudflare Worker ──► Supabase DB + signed URLs
-
-Admin browser
-  └─ Moderation UI ──► Cloudflare Worker (Bearer auth) ──► Supabase
-                          approve: moves file uploads/ → approved/, updates DB
-                          reject:  removes file, marks rejected
-```
-
-## Local development
+### Quick Start
 
 ```bash
 npm install
-npm run dev
+cp .env.example .env.local    # fill in values
+npm run dev                    # Next.js at http://localhost:3000
+
+cd worker && npm install
+npx wrangler dev               # Worker at http://localhost:8787
 ```
 
-Open `http://localhost:3000`.
+### Stack
 
-## Environment variables
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js (Pages Router) + TypeScript |
+| Hosting | Vercel |
+| Database + Storage | Supabase (PostgreSQL + S3-compatible) |
+| API | Cloudflare Worker (Wrangler 4, TypeScript) |
+| Edge filter | `proxy.ts` — geo, bot, rate-limit |
+| Tests | Jest + Testing Library |
 
-Copy `.env.example` to `.env` and fill in your values:
+### Environment Variables
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key (browser-safe) |
-| `NEXT_PUBLIC_WORKER_BASE_URL` | Cloudflare Worker URL |
-| `NEXT_PUBLIC_WEDDING_SLUG` | Wedding identifier (`john-crystal-2026`) |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-side only — never expose in browser |
+See `.env.example` for the full annotated list. Key variables:
 
-## Database schema
+| Variable | Exposure | Purpose |
+|----------|----------|---------|
+| `NEXT_PUBLIC_SUPABASE_URL` | Browser | Supabase project API URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser | Supabase anon key |
+| `NEXT_PUBLIC_WEDDING_SLUG` | Browser | Per-couple DB partition key |
+| `NEXT_PUBLIC_WORKER_BASE_URL` | Browser | Cloudflare Worker URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only | Never expose in browser |
+| `RESTRICT_TO_MIDWEST` | Server (proxy.ts) | Optional regional restriction |
 
-Schema is maintained as idempotent SQL migrations in `supabase/migrations/`.  
-`supabase/setup-live.sql` is a single-file composite you can paste directly into the Supabase SQL editor to initialize a fresh project.
+Worker secrets are set via `wrangler secret put` (see [docs/DEVELOPER.md](docs/DEVELOPER.md)).
 
-## Worker
-
-The Cloudflare Worker lives in `worker/`. Deploy with:
+### Tests
 
 ```bash
-cd worker
-npx wrangler deploy
+npm test              # run all Jest tests (8 suites, 75 tests)
+npm run test:watch    # watch mode
 ```
 
-Required Worker secrets (set via `wrangler secret put`):
-- `SUPABASE_URL`
-- `SUPABASE_SERVICE_ROLE_KEY`
-- `ADMIN_PASSWORD`
-- `ADMIN_ORIGIN` (optional — locks CORS to your Vercel domain)
+### Project Documentation Index
 
-## Deployment
+| Document | Purpose |
+|----------|---------|
+| [docs/DEVELOPER.md](docs/DEVELOPER.md) | Architecture, deployment, debugging runbook |
+| [docs/GUEST-GUIDE.md](docs/GUEST-GUIDE.md) | Guest-facing guide (upload, gallery, privacy) |
+| [docs/devlog.md](docs/devlog.md) | Chronological development notes |
+| [docs/styleguide.md](docs/styleguide.md) | Typography, palette, CSS conventions |
+| [docs/content-moderation.md](docs/content-moderation.md) | Moderation policy and NSFW pipeline |
+| [docs/new-client-setup-guide.md](docs/new-client-setup-guide.md) | Onboarding a new couple |
+| [docs/templates/new-site-checklist.md](docs/templates/new-site-checklist.md) | Step-by-step for a new deployment |
+| [docs/templates/deploy-security-checklist.md](docs/templates/deploy-security-checklist.md) | Pre-launch security review |
+| [docs/templates/pitfalls.md](docs/templates/pitfalls.md) | Known gotchas and how to avoid them |
 
-Vercel auto-deploys on push to `main`. Framework is auto-detected as Next.js.
+> **Note:** The repo contains two separate TypeScript projects — the root Next.js app and `worker/`. The root `tsconfig.json` intentionally excludes `worker/` and `supabase/functions/` to prevent Vercel's build from type-checking Worker-only or Deno files. Do not remove this boundary.
 
-DNS is managed through Cloudflare. Domain records point to Vercel; email routing records remain in Cloudflare.
-
-> **Note:** The repo contains two separate TypeScript projects — the root Next.js app and `worker/`. The root `tsconfig.json` intentionally excludes `worker/` to prevent Vercel's build from type-checking Worker-only files. Do not remove this boundary.

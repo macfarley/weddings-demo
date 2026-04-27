@@ -4,7 +4,7 @@ import FeatureToast from '../components/FeatureToast';
 import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
 
 // Validate input before submission
-const validatePhotoSubmission = (
+export const validatePhotoSubmission = (
   name: string,
   familyName: string,
   shortCaption: string,

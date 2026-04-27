@@ -1,6 +1,5 @@
 User-agent: *
-Disallow: /photos/
-Disallow: /gallery
-Disallow: /upload
-Disallow: /admin
-Disallow: /api/
+Disallow: /
+
+# This is a private event site.
+# proxy.ts also sends X-Robots-Tag: noindex on every response as belt-and-suspenders.

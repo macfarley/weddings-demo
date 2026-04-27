@@ -347,3 +347,28 @@ Addressed excessive Supabase egress and implemented security measures to prevent
 **Testing and Validation**
 - Verified all changes with no errors.
 - Confirmed functionality of middleware, Worker updates, honeypot field, and privacy banner.
+
+## 2026-04-27
+
+### Summary
+Docs folder cleanup and updates — archived obsolete files, cleaned up styleguide, formatted credits, and updated new-client setup guide.
+
+### Changes This Session
+
+**Docs folder cleanup**
+- Moved `docs/planning.md`, `docs/path-forward-stable-placeholder.md`, and `docs/collins-may-wedding-client-001.md` to `docs/archive/` (gitignored)
+- Moved `docs/about-page-template.txt` to `docs/templates/about-page-template.md`
+
+**Styleguide rewrite**
+- `docs/styleguide.md`: reduced from 408 lines to 138 lines
+  - Removed obsolete Chakra UI layout section (~280 lines)
+  - Fixed `petty-shop` secondary hex value (`#D62828` → `#E74A4A`)
+  - Added active palette callout at the top
+
+**Credits formatting**
+- `docs/credits.md`: formatted raw dump into markdown tables with headers
+
+**New-client setup guide update**
+- `docs/new-client-setup-guide.md`:
+  - Section 8: added weekly egress report cron (`0 10 * * 0`), updated to 3 crons total
+  - Section 10: updated checklist to include `SLACK_WEBHOOK_URL` secret and verify all 3 crons

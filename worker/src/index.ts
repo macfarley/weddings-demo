@@ -214,11 +214,10 @@ export default {
 
 		try {
 			switch (routeKey) {
-				// Temporary runtime verification endpoint.
-				// Purpose: confirm Worker secrets are present after deploy.
-				// Expected output at /health:
-				// {"ok":true,"url":true,"key":true}
-				// You can keep this route during rollout, or remove/comment it after verification.
+				// ACTIVE-ALTERNATE: runtime secrets verification endpoint
+				// Use after every deploy to confirm Worker env bindings are present.
+				// Hit GET /health — expected response: {"ok":true,"url":true,"key":true}
+				// Safe to keep permanently; it exposes no secrets, only boolean presence.
 				case 'GET /health':
 					return withCors(request, env, json({
 						ok: Boolean(env.SUPABASE_URL) && Boolean(env.SUPABASE_SERVICE_ROLE_KEY),

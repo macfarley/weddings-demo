@@ -244,19 +244,27 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
 
 ## SECTION 8 — VERIFY CRON JOBS
 
-The Worker `wrangler.jsonc` already includes two cron triggers:
+The Worker `wrangler.jsonc` includes three cron triggers:
 
 ```jsonc
 "triggers": {
-  "crons": ["0 9 * * *", "*/2 * * * *"]
+  "crons": ["0 9 * * *", "*/2 * * * *", "0 10 * * 0"]
 }
 ```
 
-- `0 9 * * *` — daily keep-alive ping to prevent Supabase free-tier auto-pause
-- `*/2 * * * *` — auto-moderate pending photos via HuggingFace NSFW classifier (noop if no `HF_TOKEN`)
+| Cron | Schedule | Purpose |
+|------|---------|---------|
+| `0 9 * * *` | Daily at 09:00 UTC | Keep-alive ping to prevent Supabase free-tier auto-pause |
+| `*/2 * * * *` | Every 2 minutes | Auto-moderate pending photos via HuggingFace NSFW classifier (noop if no `HF_TOKEN`) |
+| `0 10 * * 0` | Sundays at 10:00 UTC | Weekly egress report delivered to Slack / email |
 
 These are active immediately after `wrangler deploy`. Confirm in the Cloudflare
 dashboard under **Workers & Pages → your worker → Triggers → Cron Triggers**.
+
+To test the weekly report manually:
+```bash
+curl -H "Authorization: Bearer <ADMIN_PASSWORD>" https://your-worker.workers.dev/report
+```
 
 ---
 
@@ -280,13 +288,13 @@ dashboard under **Workers & Pages → your worker → Triggers → Cron Triggers
 - [ ] Color palette default set in `context/PaletteContext.tsx`
 - [ ] All migrations applied to new Supabase project
 - [ ] Storage bucket `wedding-photos` created (private)
-- [ ] Worker deployed with all 5+ secrets set
+- [ ] Worker deployed with all 5+ secrets set (including `SLACK_WEBHOOK_URL` if using weekly reports)
 - [ ] Vercel env vars all set and redeployed
 - [ ] `/health` endpoint returns `{"ok":true,...}`
 - [ ] Photo upload → approve → gallery flow tested end-to-end
 - [ ] Guestbook submission tested
 - [ ] Admin password works; client password works
-- [ ] Cron triggers visible in Cloudflare dashboard
+- [ ] All 3 cron triggers visible in Cloudflare dashboard
 - [ ] Custom domain mapped (optional — do in Vercel and Cloudflare DNS)
 
 ---

@@ -1,31 +1,23 @@
-import { useState } from 'react';
-import FeatureToast from '../components/FeatureToast';
+import { useEffect } from 'react';
+import { useRouter } from 'next/router';
 
-// Photo Upload + Guestbook stub
+// ACTIVE-ALTERNATE: /upload redirect stub
+//
+// The canonical photo upload page is /sendyourphotos.
+// This stub exists because:
+//   1. robots.txt blocks /upload from indexing (legacy path from early planning).
+//   2. Some QR code flyerv1 links pointed here before the QR code was updated.
+//   3. The proxy.ts Accept-header check covers /upload to block scrapers on this path too.
+//
+// Safe to change: if you update robots.txt and the flyer, this can redirect to /sendyourphotos
+// or be removed entirely. Do not add upload logic here — use pages/sendyourphotos.tsx.
+
 export default function Upload() {
-  const [showUnavailableToast, setShowUnavailableToast] = useState(false);
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowUnavailableToast(true);
-  };
+  useEffect(() => {
+    void router.replace('/sendyourphotos');
+  }, [router]);
 
-  return (
-    <main className="upload-container">
-      <h2 className="upload-title">Upload Your Photo</h2>
-      <form className="upload-form" onSubmit={handleSubmit}>
-        <input className="upload-input" placeholder="Your Name (optional)" />
-        <input className="upload-input" placeholder="Family Name / Nickname (optional)" />
-        <textarea className="upload-textarea" placeholder="Caption" />
-        <input className="upload-input" type="file" />
-        <button type="submit" className="upload-button">Upload (Coming Soon)</button>
-      </form>
-
-      <FeatureToast
-        isOpen={showUnavailableToast}
-        onClose={() => setShowUnavailableToast(false)}
-        message="This feature is not yet implemented. Uploads are coming soon."
-      />
-    </main>
-  );
+  return null;
 }
