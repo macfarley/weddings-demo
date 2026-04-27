@@ -7,7 +7,8 @@ export default function UnderConstruction() {
       <img 
         src="/photos/happycouple.jpg" 
         alt="Wedding preview" 
-        className="underconstruction-image" 
+        className="underconstruction-image"
+        loading="lazy"
       />
       <p className="underconstruction-couple-name">John & Crystal May-Collins</p>
       <p className="underconstruction-date">Save the Date: Friday, May 9, 2026</p>

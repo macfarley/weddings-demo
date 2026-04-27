@@ -38,6 +38,8 @@
   "exclude": [
     "node_modules",
     "worker",
-    "worker/**"
+    "worker/**",
+    "supabase/functions",
+    "supabase/functions/**"
   ]
 }

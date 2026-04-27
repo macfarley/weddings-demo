@@ -14,7 +14,8 @@
 		"nodejs_compat"
 	],
 	"triggers": {
-		"crons": ["0 9 * * *", "*/2 * * * *"]
+		"crons": ["0 9 * * *", "*/2 * * * *", "0 10 * * 0"]
+		//          ^daily keepalive  ^auto-mod every 2 min  ^weekly report Sunday 10:00 UTC
 	}
 	/**
 	 * Smart Placement

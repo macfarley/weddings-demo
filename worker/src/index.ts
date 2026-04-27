@@ -8,7 +8,77 @@ type WorkerEnv = {
 	ADMIN_ORIGIN?: string;
 	SITE_ORIGIN?: string; // Public site origin, e.g. https://your-site.vercel.app
 	HF_TOKEN?: string; // HuggingFace API token for auto-moderation (optional — fails open if absent)
+	SLACK_WEBHOOK_URL?: string; // Slack incoming webhook for weekly egress reports
+	RESTRICT_TO_MIDWEST?: string; // Set to "true" to block non-Midwest US states
 };
+
+// ---------------------------------------------------------------------------
+// Cloudflare request.cf properties (subset we actually use)
+// ---------------------------------------------------------------------------
+interface CfProperties {
+	country?: string;   // ISO 3166-1 alpha-2 (e.g. "US")
+	region?: string;    // State/province code for US (e.g. "OH")
+	asn?: number;       // Autonomous System Number
+	botManagement?: {
+		score?: number;       // 1 (bot) – 99 (human)
+		verifiedBot?: boolean; // Cloudflare-verified legitimate crawlers
+	};
+}
+
+// ---------------------------------------------------------------------------
+// Cloud provider ASNs — block scrapers running on shared infra.
+// Sources: bgp.he.net, ipinfo.io/AS lookups (updated 2026-04).
+// ---------------------------------------------------------------------------
+const CLOUD_ASNS = new Set([
+	14618, 16509,  // AWS EC2
+	15169, 396982, // Google Cloud / GCP
+	8075,  8074,   // Microsoft Azure
+	14061,         // DigitalOcean
+	63949,         // Linode / Akamai
+	24940,         // Hetzner
+	16276,         // OVH
+	20473,         // Vultr
+	60781,         // Leaseweb
+	132203,        // Tencent Cloud
+	45090,         // Tencent / Shenzhen
+]);
+
+// Midwest + adjacent US states allowed when RESTRICT_TO_MIDWEST=true.
+const MIDWEST_STATES = new Set(['OH', 'IN', 'MI', 'KY', 'PA', 'WI', 'IL', 'MN', 'MO', 'IA', 'WV', 'TN', 'VA']);
+
+// ---------------------------------------------------------------------------
+// In-memory rate limiter (per CF-Connecting-IP, per Worker isolate)
+// Effective against burst traffic; resets on cold start.
+// ---------------------------------------------------------------------------
+interface RateWindow { count: number; resetAt: number }
+interface IpRateEntry { minute: RateWindow; hour: RateWindow }
+const workerRateLimits = new Map<string, IpRateEntry>();
+const WORKER_RATE_PER_MINUTE = 30;
+const WORKER_RATE_PER_HOUR = 300;
+
+function workerIsRateLimited(ip: string): boolean {
+	const now = Date.now();
+	let entry = workerRateLimits.get(ip);
+	if (!entry) {
+		entry = {
+			minute: { count: 0, resetAt: now + 60_000 },
+			hour:   { count: 0, resetAt: now + 3_600_000 },
+		};
+		workerRateLimits.set(ip, entry);
+	}
+	if (now > entry.minute.resetAt) entry.minute = { count: 0, resetAt: now + 60_000 };
+	if (now > entry.hour.resetAt)   entry.hour   = { count: 0, resetAt: now + 3_600_000 };
+	entry.minute.count++;
+	entry.hour.count++;
+	if (workerRateLimits.size > 10_000) {
+		// Prune oldest 2000 entries to avoid memory growth.
+		const sorted = [...workerRateLimits.entries()]
+			.sort((a, b) => a[1].hour.resetAt - b[1].hour.resetAt)
+			.slice(0, 2_000);
+		for (const [k] of sorted) workerRateLimits.delete(k);
+	}
+	return entry.minute.count > WORKER_RATE_PER_MINUTE || entry.hour.count > WORKER_RATE_PER_HOUR;
+}
 
 const BUCKET = 'wedding-photos';
 const UPLOADS_PREFIX = 'uploads';
@@ -20,6 +90,7 @@ const ADMIN_ONLY_ROUTES = new Set([
 	'POST /photos/purge',
 	'POST /delete',
 	'POST /guestbook/delete',
+	'GET /report',
 ]);
 
 // Routes accessible to both admin and client passwords
@@ -40,8 +111,11 @@ const CLIENT_ROUTES = new Set([
 export default {
 	async scheduled(event: ScheduledController, env: WorkerEnv): Promise<void> {
 		if (event.cron === '*/2 * * * *') {
-			// Auto-moderate pending photos every 2 minutes
+			// Auto-moderate pending photos every 2 minutes.
 			await autoModeratePending(env);
+		} else if (event.cron === '0 10 * * 0') {
+			// Weekly egress + activity report — Sunday 10:00 UTC.
+			await sendWeeklyReport(env);
 		} else {
 			// Daily keep-alive ping — resets Supabase's 7-day auto-pause timer.
 			await fetch(`${env.SUPABASE_URL}/rest/v1/photos?select=id&limit=1`, {
@@ -54,6 +128,49 @@ export default {
 	},
 
 	async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+		// -----------------------------------------------------------------------
+		// 1. Cloudflare-level checks (geo, bot score, ASN, rate limit).
+		//    These run before any Supabase call.
+		// -----------------------------------------------------------------------
+		const cf = (request as unknown as { cf?: CfProperties }).cf;
+
+		// Block non-US traffic.
+		if (cf?.country && cf.country !== 'US') {
+			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+		}
+
+		// Optional: block non-Midwest US states (env var RESTRICT_TO_MIDWEST=true).
+		if (env.RESTRICT_TO_MIDWEST === 'true' && cf?.country === 'US' && cf?.region) {
+			if (!MIDWEST_STATES.has(cf.region)) {
+				return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+			}
+		}
+
+		// Block low-confidence bot scores (1 = definite bot, 99 = definitely human).
+		// Verified bots (Googlebot, Bingbot) are exempted via verifiedBot flag.
+		const botScore = cf?.botManagement?.score;
+		const verifiedBot = cf?.botManagement?.verifiedBot ?? false;
+		if (!verifiedBot && botScore !== undefined && botScore < 30) {
+			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+		}
+
+		// Block requests from known cloud provider ASNs (AWS, GCP, Azure, etc.).
+		if (cf?.asn !== undefined && CLOUD_ASNS.has(cf.asn)) {
+			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+		}
+
+		// Per-IP rate limiting.
+		const clientIp = request.headers.get('CF-Connecting-IP') || '';
+		if (clientIp && workerIsRateLimited(clientIp)) {
+			return new Response(JSON.stringify({ error: 'Too Many Requests' }), {
+				status: 429,
+				headers: { 'Retry-After': '60' },
+			});
+		}
+
+		// -----------------------------------------------------------------------
+		// 2. User-agent checks.
+		// -----------------------------------------------------------------------
 		// Block requests with no user-agent or known scraper user-agents.
 		// This is a best-effort deterrent; determined bots can spoof UAs.
 		const ua = (request.headers.get('user-agent') ?? '').toLowerCase();
@@ -61,6 +178,7 @@ export default {
 			'python-requests', 'python-urllib', 'scrapy', 'go-http-client',
 			'java/', 'libwww-perl', 'wget', 'curl/', 'masscan', 'zgrab',
 			'nikto', 'sqlmap', 'ahrefsbot', 'semrushbot', 'mj12bot',
+			'serpstatbot', 'bytespider', 'gptbot', 'ccbot', 'claudebot',
 		];
 		if (!ua || BAD_UA_PATTERNS.some((p) => ua.includes(p))) {
 			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
@@ -131,6 +249,10 @@ export default {
 					return withCors(request, env, await deleteGuestbookById(request, env));
 				case 'GET /admin/stats':
 					return withCors(request, env, await adminStats(env));
+				case 'GET /report':
+					// Manually trigger the weekly egress report (admin-only).
+					// Auth is enforced by the ADMIN_ONLY_ROUTES set check above.
+					return withCors(request, env, await getReportResponse(env));
 
 				// Legacy aliases kept for compatibility with already-wired UI flows.
 				case 'GET /list-uploads':
@@ -386,7 +508,22 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 		return json({ error: error.message }, 500);
 	}
 
-	const rows = data || [];
+	type PhotoRow = {
+		id: string;
+		wedding_slug?: string | null;
+		storage_path: string;
+		label_raw?: string | null;
+		label_slug?: string | null;
+		original_filename?: string | null;
+		uploader_name?: string | null;
+		caption?: string | null;
+		created_at: string;
+		status: string;
+		is_visible: boolean;
+		love_count?: number | null;
+	};
+
+	const rows = (data ?? []) as unknown as PhotoRow[];
 	const total = count ?? 0;
 	const signed = await Promise.all(rows.map(async (row) => {
 		// Create two signed URLs per photo:
@@ -866,6 +1003,110 @@ function isLocalDevRequest(request: Request): boolean {
 	}
 
 	return false;
+}
+
+// ---------------------------------------------------------------------------
+// Weekly egress + activity report
+// ---------------------------------------------------------------------------
+
+async function getReportResponse(env: WorkerEnv): Promise<Response> {
+	const report = await buildWeeklyReport(env);
+	return json(report);
+}
+
+async function buildWeeklyReport(env: WorkerEnv): Promise<Record<string, unknown>> {
+	const supabase = getClient(env);
+	const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+
+	const [allPhotos, weeklyPhotos, weeklyGuestbook, pendingPhotos, storageObjects] = await Promise.all([
+		supabase.from('photos').select('id', { count: 'exact', head: true }),
+		supabase.from('photos').select('status, uploader_name').gte('created_at', weekAgo),
+		supabase.from('guestbook_entries').select('id', { count: 'exact', head: true }).gte('created_at', weekAgo),
+		supabase.from('photos').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+		supabase.storage.from(BUCKET).list(APPROVED_PREFIX, { limit: 1, sortBy: { column: 'created_at', order: 'desc' } }),
+	]);
+
+	const photos = weeklyPhotos.data ?? [];
+	const approved = photos.filter((p) => p.status === 'approved').length;
+	const pending  = photos.filter((p) => p.status === 'pending').length;
+	const rejected = photos.filter((p) => p.status === 'rejected').length;
+
+	// Count uploads per uploader to flag unusually prolific submitters.
+	const uploaderCounts: Record<string, number> = {};
+	for (const p of photos) {
+		const name = p.uploader_name ?? 'unknown';
+		uploaderCounts[name] = (uploaderCounts[name] ?? 0) + 1;
+	}
+	const topUploaders = Object.entries(uploaderCounts)
+		.sort((a, b) => b[1] - a[1])
+		.slice(0, 5)
+		.map(([name, count]) => ({ name, count }));
+
+	// Flag suspicious activity: any uploader with > 20 uploads in one week.
+	const suspicious = topUploaders.filter((u) => u.count > 20);
+
+	return {
+		generated_at: new Date().toUTCString(),
+		period: 'last 7 days',
+		photos: {
+			total_all_time: allPhotos.count ?? 0,
+			this_week: photos.length,
+			approved,
+			pending,
+			rejected,
+			currently_in_review: pendingPhotos.count ?? 0,
+		},
+		guestbook: {
+			new_entries_this_week: weeklyGuestbook.count ?? 0,
+		},
+		top_uploaders: topUploaders,
+		suspicious_uploaders: suspicious,
+		storage_note: storageObjects.error
+			? 'Storage list unavailable'
+			: `${APPROVED_PREFIX}/ is accessible (latest object fetched)`,
+	};
+}
+
+async function sendWeeklyReport(env: WorkerEnv): Promise<void> {
+	if (!env.SLACK_WEBHOOK_URL) return; // No webhook configured — silently skip.
+
+	try {
+		const report = await buildWeeklyReport(env);
+		const { photos, guestbook, top_uploaders, suspicious_uploaders } = report as {
+			photos: { total_all_time: number; this_week: number; approved: number; pending: number; rejected: number; currently_in_review: number };
+			guestbook: { new_entries_this_week: number };
+			top_uploaders: Array<{ name: string; count: number }>;
+			suspicious_uploaders: Array<{ name: string; count: number }>;
+		};
+
+		const lines = [
+			'*📸 Weekly Wedding Site Report*',
+			'',
+			`*Photos this week:* ${photos.this_week} (approved: ${photos.approved}, pending: ${photos.pending}, rejected: ${photos.rejected})`,
+			`*Total photos:* ${photos.total_all_time} | *Currently in review:* ${photos.currently_in_review}`,
+			`*New guestbook entries:* ${guestbook.new_entries_this_week}`,
+		];
+
+		if (top_uploaders.length > 0) {
+			lines.push('', '*Top uploaders this week:*');
+			for (const u of top_uploaders) lines.push(`  • ${u.name}: ${u.count} photos`);
+		}
+
+		if (suspicious_uploaders.length > 0) {
+			lines.push('', `*⚠️ Suspicious activity:* ${suspicious_uploaders.length} uploader(s) submitted > 20 photos`);
+			for (const u of suspicious_uploaders) lines.push(`  • ${u.name}: ${u.count} photos`);
+		}
+
+		lines.push('', `_Generated: ${new Date().toUTCString()}_`);
+
+		await fetch(env.SLACK_WEBHOOK_URL, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({ text: lines.join('\n') }),
+		});
+	} catch {
+		// Silently ignore report delivery failures — don't break other cron work.
+	}
 }
 
 function isLocalHostname(hostname: string): boolean {
