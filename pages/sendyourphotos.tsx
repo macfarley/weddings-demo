@@ -78,6 +78,7 @@ export default function SendYourPhotos() {
   const [longCaption, setLongCaption] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState('');
+  const [honeypot, setHoneypot] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
@@ -123,6 +124,15 @@ export default function SendYourPhotos() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors([]);
+
+    // Honeypot check — bots fill hidden fields, humans don't.
+    // Silently succeed to avoid tipping off bots that they were blocked.
+    if (honeypot) {
+      setToastMessage('Photo uploaded successfully! It will appear after moderation approval.');
+      setShowToast(true);
+      handleReset();
+      return;
+    }
 
     // Validate on client side
     const validationErrors = validatePhotoSubmission(name, familyName, shortCaption, longCaption, file);
@@ -204,6 +214,7 @@ export default function SendYourPhotos() {
     setLongCaption('');
     setFile(null);
     setFileName('');
+    setHoneypot('');
     setErrors([]);
   };
 
@@ -245,7 +256,20 @@ export default function SendYourPhotos() {
         )}
 
         <form onSubmit={handleSubmit} className="photo-guestbook-form">
-          {/* Photo Upload Section */}
+          {/* Honeypot — hidden from real users, traps bots that auto-fill forms */}
+          <div aria-hidden="true" style={{ display: 'none' }}>
+            <label htmlFor="wedding_url">Website</label>
+            <input
+              id="wedding_url"
+              name="wedding_url"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+          {/* Photo Upload Section */}}
           <div>
             <div className="form-group">
               <label className="form-label" style={{ color: palette.text }}>

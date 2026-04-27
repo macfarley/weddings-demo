@@ -4,6 +4,7 @@ import { system } from '../theme';
 import { PaletteProvider } from '../context/PaletteContext';
 import NavBar from '../components/NavBar';
 import SiteFooter from '../components/SiteFooter';
+import PrivacyNoticeBanner from '../components/PrivacyNoticeBanner';
 import '../styles/globals.css';
 // Page styles (must be imported here — Next.js forbids global CSS in page/component files)
 import '../styles/pages/about.css';
@@ -35,6 +36,7 @@ export default function MyApp({ Component, pageProps }) {
         {!isInProgressRoute && <NavBar />}
         <Component {...pageProps} />
         {!isInProgressRoute && <SiteFooter />}
+        <PrivacyNoticeBanner />
       </PaletteProvider>
     </ChakraProvider>
   );

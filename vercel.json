@@ -7,6 +7,12 @@
       ]
     },
     {
+      "source": "/photos/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400, stale-while-revalidate=3600" }
+      ]
+    },
+    {
       "source": "/((?!_next/static|_next/image|favicon\\.ico|photos/).*)",
       "headers": [
         { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }

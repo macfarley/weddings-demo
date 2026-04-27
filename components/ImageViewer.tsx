@@ -51,7 +51,7 @@ export default function ImageViewer({ isOpen, image, onClose }: ImageViewerProps
 
         {/* Main Image */}
         <div className="image-viewer-content">
-          <img src={image.src} alt={image.shortCaption} className="image-viewer-image" />
+          <img src={image.src} alt={image.shortCaption} className="image-viewer-image" loading="lazy" />
         </div>
 
         {/* Image Info */}

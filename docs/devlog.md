@@ -322,3 +322,28 @@ This means the next commit should be **scoped intentionally** (stage only files 
 - replace About stubs with couple-provided His/Hers/Ours story content
 - improve readability and accessibility (larger type, stronger focus states, larger hit targets)
 - align placeholder UX with clear “not yet implemented” feedback for non-live forms
+
+## 2026-04-27
+
+### Summary
+Addressed excessive Supabase egress and implemented security measures to prevent scrapers and bots. Optimized image delivery and caching while ensuring a frictionless user experience.
+
+### Changes This Session
+
+**Supabase Egress Optimization**
+- Moved gallery images to `/public/photos` to reduce Supabase bandwidth usage.
+- Updated image delivery to use optimized static assets.
+
+**Security Enhancements**
+- Added Next.js middleware (`/middleware.ts`) to block known bad user agents.
+- Implemented origin allowlisting in Cloudflare Worker (`/worker/src/index.ts`) to block unauthorized API calls.
+- Added honeypot field to `/pages/sendyourphotos.tsx` to deter bots.
+- Updated `/public/robots.txt` to disallow crawlers.
+
+**User Experience Improvements**
+- Created `PrivacyNoticeBanner` component to inform users about site privacy.
+- Updated Vercel caching rules for static assets to improve performance.
+
+**Testing and Validation**
+- Verified all changes with no errors.
+- Confirmed functionality of middleware, Worker updates, honeypot field, and privacy banner.

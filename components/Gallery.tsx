@@ -142,6 +142,7 @@ export default function Gallery({ photos = null, workerBaseUrl = '' }: GalleryPr
                   src={photo.url}
                   alt={photo.shortCaption}
                   className="gallery-image"
+                  loading="lazy"
                 />
               )}
               <figcaption className="gallery-caption">

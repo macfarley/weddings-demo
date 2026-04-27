@@ -28,7 +28,6 @@ export default function HomePage() {
 					>
 						John & Crystal May&apos;s Wedding Website
 					</h1>
-
 				{/* Wedding cake hero image */}
 				<div className="home-cake-wrap">
 					<img

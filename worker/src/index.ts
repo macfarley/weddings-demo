@@ -6,6 +6,7 @@ type WorkerEnv = {
 	ADMIN_PASSWORD?: string;
 	CLIENT_PASSWORD?: string;
 	ADMIN_ORIGIN?: string;
+	SITE_ORIGIN?: string; // Public site origin, e.g. https://your-site.vercel.app
 	HF_TOKEN?: string; // HuggingFace API token for auto-moderation (optional — fails open if absent)
 };
 
@@ -53,6 +54,32 @@ export default {
 	},
 
 	async fetch(request: Request, env: WorkerEnv): Promise<Response> {
+		// Block requests with no user-agent or known scraper user-agents.
+		// This is a best-effort deterrent; determined bots can spoof UAs.
+		const ua = (request.headers.get('user-agent') ?? '').toLowerCase();
+		const BAD_UA_PATTERNS = [
+			'python-requests', 'python-urllib', 'scrapy', 'go-http-client',
+			'java/', 'libwww-perl', 'wget', 'curl/', 'masscan', 'zgrab',
+			'nikto', 'sqlmap', 'ahrefsbot', 'semrushbot', 'mj12bot',
+		];
+		if (!ua || BAD_UA_PATTERNS.some((p) => ua.includes(p))) {
+			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+		}
+
+		// Origin allowlist: only allow requests from the configured site origins.
+		// SITE_ORIGIN can be a comma-separated list of allowed origins.
+		// Falls back to open (no restriction) if SITE_ORIGIN is not set.
+		const requestOrigin = request.headers.get('origin');
+		if (env.SITE_ORIGIN && requestOrigin) {
+			const allowed = [
+				...env.SITE_ORIGIN.split(',').map((o) => o.trim()).filter(Boolean),
+				...(env.ADMIN_ORIGIN ? [env.ADMIN_ORIGIN.trim()] : []),
+			];
+			if (!allowed.includes(requestOrigin)) {
+				return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
+			}
+		}
+
 		if (request.method === 'OPTIONS') {
 			return new Response(null, { status: 204, headers: corsHeaders(request, env) });
 		}
@@ -349,7 +376,9 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 		const { data: signedData, error: signedError } = await supabase
 			.storage
 			.from(BUCKET)
-			.createSignedUrl(row.storage_path, 60 * 60);
+			.createSignedUrl(row.storage_path, 60 * 60, {
+				transform: { width: 600, quality: 70 },
+			});
 
 		const signedUrl = signedError || !signedData?.signedUrl
 			? null

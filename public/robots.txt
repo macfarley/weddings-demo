@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /photos/
+Disallow: /gallery
+Disallow: /upload
+Disallow: /admin
+Disallow: /api/
