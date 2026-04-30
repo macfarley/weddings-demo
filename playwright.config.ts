@@ -15,12 +15,6 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     actionTimeout: 15_000,
-    // Playwright's APIRequestContext (request.get/post) sends no User-Agent by
-    // default. The Worker blocks empty UAs with 403. Setting this here applies
-    // to all request fixture calls; browser pages ignore it (Chromium overrides).
-    extraHTTPHeaders: {
-      'User-Agent': 'Mozilla/5.0 (WeddingSiteE2E; Playwright)',
-    },
   },
   projects: [
     {

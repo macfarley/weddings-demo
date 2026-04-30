@@ -18,12 +18,20 @@ const WORKER_BASE =
 const WEDDING_SLUG =
   process.env.NEXT_PUBLIC_WEDDING_SLUG ?? 'may-collins-2026';
 
+// The Worker's UA blocklist rejects empty user-agents with 403.
+// Playwright's `request` fixture (APIRequestContext) sends no UA by default —
+// it is NOT a browser, so config-level extraHTTPHeaders don't apply to it.
+// We set the header explicitly on every Worker API call so CI doesn't get blocked.
+const WORKER_HEADERS = {
+  'user-agent': 'Mozilla/5.0 (WeddingSiteE2E; Playwright)',
+};
+
 // ---------------------------------------------------------------------------
 // Worker API smoke tests
 // ---------------------------------------------------------------------------
 
 test('worker /health returns { ok: true, db: true }', async ({ request }) => {
-  const res = await request.get(`${WORKER_BASE}/health`);
+  const res = await request.get(`${WORKER_BASE}/health`, { headers: WORKER_HEADERS });
   expect(res.status()).toBe(200);
   const body = await res.json();
   expect(body.ok).toBe(true);
@@ -33,6 +41,7 @@ test('worker /health returns { ok: true, db: true }', async ({ request }) => {
 test('worker /photos/approved returns a valid JSON envelope', async ({ request }) => {
   const res = await request.get(
     `${WORKER_BASE}/photos/approved?wedding_slug=${WEDDING_SLUG}`,
+    { headers: WORKER_HEADERS },
   );
   expect(res.status()).toBe(200);
   const body = await res.json();
@@ -43,6 +52,7 @@ test('worker /photos/approved returns a valid JSON envelope', async ({ request }
 test('worker /guestbook/approved returns a valid JSON envelope', async ({ request }) => {
   const res = await request.get(
     `${WORKER_BASE}/guestbook/approved?wedding_slug=${WEDDING_SLUG}`,
+    { headers: WORKER_HEADERS },
   );
   expect(res.status()).toBe(200);
   const body = await res.json();
