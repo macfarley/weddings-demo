@@ -85,11 +85,10 @@ See `.env.example` for the full annotated list. Key variables:
 
 | Variable | Exposure | Purpose |
 |----------|----------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Browser | Supabase project API URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser | Supabase anon key |
+| `DATABASE_URL` | Server-only | Neon PostgreSQL connection string — never expose in browser |
+| `UPLOADTHING_TOKEN` | Server-only | UploadThing API token |
 | `NEXT_PUBLIC_WEDDING_SLUG` | Browser | Per-couple DB partition key |
 | `NEXT_PUBLIC_WORKER_BASE_URL` | Browser | Cloudflare Worker URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only | Never expose in browser |
 | `RESTRICT_TO_MIDWEST` | Server (proxy.ts) | Optional regional restriction |
 
 Worker secrets are set via `wrangler secret put` (see [docs/DEVELOPER.md](docs/DEVELOPER.md)).
@@ -114,6 +113,7 @@ npm run test:watch    # watch mode
 | [docs/templates/new-site-checklist.md](docs/templates/new-site-checklist.md) | Step-by-step for a new deployment |
 | [docs/templates/deploy-security-checklist.md](docs/templates/deploy-security-checklist.md) | Pre-launch security review |
 | [docs/templates/pitfalls.md](docs/templates/pitfalls.md) | Known gotchas and how to avoid them |
+| [docs/supabase-to-neon-migration.md](docs/supabase-to-neon-migration.md) | Why and how we migrated off Supabase |
 
-> **Note:** The repo contains two separate TypeScript projects — the root Next.js app and `worker/`. The root `tsconfig.json` intentionally excludes `worker/` and `supabase/functions/` to prevent Vercel's build from type-checking Worker-only or Deno files. Do not remove this boundary.
+> **Note:** The repo contains two separate TypeScript projects — the root Next.js app and `worker/`. The root `tsconfig.json` intentionally excludes `worker/` to prevent Vercel's build from type-checking Worker-only files. Do not remove this boundary.
 
