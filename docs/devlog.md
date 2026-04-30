@@ -1,5 +1,72 @@
 # Dev Log
 
+## 2026-04-29
+
+### Summary
+Full platform migration from Supabase to Neon (PostgreSQL) + UploadThing (file storage). Motivated by a data-access incident with Supabase's free tier. All functionality preserved — guestbook, photo gallery, admin moderation, love reactions. Zero downtime migration completed in one session.
+
+### What Changed
+
+**Database — Supabase → Neon**
+- Removed `@supabase/supabase-js` from all dependencies (root and worker)
+- Installed `@neondatabase/serverless` (`^0.10.4` root, `^1.1.0` worker)
+- `lib/supabase.ts` gutted — now exports only `getWeddingSlug()` (kept filename to avoid breaking imports in `pages/gallery.tsx` and tests)
+- All direct Supabase client calls replaced with Neon tagged template SQL (`neon(DATABASE_URL)`)
+- Error handling pattern changed from `{ data, error }` destructure → try/catch
+- COUNT queries cast via `::text` and parsed with `parseInt(result[0].count, 10)`
+- UUIDs cast explicitly with `::uuid` in parameterized queries
+
+**File Storage — Supabase Storage → UploadThing (already migrated prior session, completed here)**
+- `server/uploadthing.ts` rewired: `@supabase/supabase-js` → `@neondatabase/serverless`
+- `getServiceClient()` replaced with `getDb()` (Neon client)
+- `onUploadComplete` inserts photo metadata to Neon via parameterized SQL
+- File references use `file.ufsUrl` (CDN URL) and `file.key` (stored as `storage_path`)
+
+**Guestbook — browser Supabase client → server-side API route**
+- Created `pages/api/guestbook.ts`: server-only POST handler, Neon insert, full input validation, `is_visible=false` default
+- `pages/guestbook.tsx`: `handleSubmit` changed from direct Supabase insert to `fetch('/api/guestbook', { method: 'POST', ... })`
+
+**Worker (`worker/src/index.ts`) — full rewrite of all DB calls**
+- `WorkerEnv` now has `DATABASE_URL` only (removed `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`)
+- All Supabase client calls replaced with Neon tagged template SQL with try/catch
+- `GET /health` now checks `Boolean(env.DATABASE_URL)` → `{ ok, db }`
+- Daily cron: replaced Supabase REST ping with `SELECT 1` keepalive
+- `POST /photos/react`: replaced `.rpc('react_to_photo', ...)` with `SELECT react_to_photo(${id}::uuid, ${hash}) as love_count`
+- All `Promise.all` type casts updated to `as unknown as Promise<T>` (required by Neon's `NeonQueryPromise` type)
+- Cron string `0 10 * * 0` fixed to `0 10 * * SUN` (Cloudflare rejected numeric weekday `0`)
+
+**Cleanup**
+- Removed `supabase/` directory entirely (config.toml, migrations, pipeline_test.py, storage.ts, edge functions)
+- Removed `@supabase/supabase-js` and `supabase` CLI from `package.json`
+- Removed all `db:*` npm scripts (`db:start`, `db:stop`, `db:reset`, `db:push`, `db:pull`, `db:migration:new`)
+- Updated `worker/package.json`: removed `@supabase/supabase-js`
+- Updated `.env.example`: Supabase vars replaced with `DATABASE_URL` + `UPLOADTHING_TOKEN`
+
+**Infrastructure**
+- Neon project: `JohnCrystalMayWedding` (us-east-2, project ID `dawn-mode-48968592`)
+- Schema reconstructed from git history and applied to Neon via `neon-schema.sql`
+- `DATABASE_URL` written to `.env.local`, Vercel env vars, and Wrangler secret
+- `UPLOADTHING_TOKEN` written to `.env.local` and Wrangler secret
+
+**Tests**
+- `guestbook-validation.test.tsx` rewritten: mocks `global.fetch`, tests POST to `/api/guestbook`, fixed assertions to `not.toHaveBeenCalledWith('/api/guestbook', ...)` (page does a load-time worker fetch on mount)
+- `guestbook-upload.test.tsx` rewritten: single form submission test via fetch mock
+
+### Build Validation
+```
+npx tsc --noEmit              # ✅ zero errors (Next.js app)
+cd worker && npx tsc --noEmit # ✅ zero errors
+npm test                      # ✅ 52/52 passing (8 suites)
+wrangler deploy               # ✅ worker live at https://worker.therealmccoyster.workers.dev
+```
+
+### Worker Secrets (current production state)
+- `DATABASE_URL` — Neon connection string ✅
+- `UPLOADTHING_TOKEN` — UploadThing API token ✅
+- `ADMIN_PASSWORD`, `CLIENT_PASSWORD`, `HF_TOKEN`, `SLACK_WEBHOOK_URL`, `ADMIN_ORIGIN`, `SITE_ORIGIN` — unchanged ✅
+
+---
+
 ## 2026-04-18
 
 ### Summary

@@ -2,13 +2,13 @@
 ### Reusable Deployment Guide
 
 **Goal:** Spin up a fresh wedding microsite for a new couple using the existing
-Supabase + Vercel + Cloudflare Worker infrastructure. Start from a clean fork of
+Neon + UploadThing + Vercel + Cloudflare Worker infrastructure. Start from a clean fork of
 this repo, swap in the couple's identity, and deploy all three layers.
 
 This guide assumes:
 - This repo is already deployed and working for at least one couple
-- You have access to GitHub, Supabase, Vercel, and the Cloudflare account
-- You have the Supabase CLI (`npx supabase`) and Wrangler (`npx wrangler`) available locally
+- You have access to GitHub, Neon, UploadThing, Vercel, and the Cloudflare account
+- You have Wrangler (`npx wrangler`) and psql available locally
 
 ---
 
@@ -40,8 +40,9 @@ This guide assumes:
    lib/
    pages/
    styles/
+   server/
    worker/
-   supabase/migrations/
+   neon-schema.sql
    ```
 
 ---
@@ -88,14 +89,14 @@ Alex & Taylor&apos;s Wedding Website
 - Update addresses, links, and any couple-specific copy inline in these files
 
 ### 2f. Wedding slug
-The slug is how Supabase rows are scoped to one couple. Set it in the environment:
+The slug is how database rows are scoped to one couple. Set it in the environment:
 
 ```env
 NEXT_PUBLIC_WEDDING_SLUG=doe-smith-2027
 ```
 
 This does **not** need to change any source files — it's read from env at runtime
-via `lib/supabase.ts → getWeddingSlug()`.
+via `lib/supabase.ts → getWeddingSlug()` (the filename is kept for import compatibility).
 
 ---
 
@@ -139,41 +140,29 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
 
 ---
 
-## SECTION 5 — CREATE A NEW SUPABASE PROJECT
+## SECTION 5 — CREATE A NEON DATABASE
 
-1. Go to [supabase.com](https://supabase.com) → New Project
+1. Go to [neon.tech](https://neon.tech) → sign in → New Project
    - Name: `wedding-doe-smith-2027`
    - Region: closest to the couple's guests (US East for Ohio, etc.)
-   - Save the database password somewhere secure
 
-2. **Apply migrations** — in the Supabase SQL Editor, run each file in order:
+2. Copy the **connection string** from the dashboard (starts with `postgresql://`).
 
-   ```
-   supabase/migrations/20260226223000_initial_setup.sql
-   supabase/migrations/20260302161500_add_photo_labels.sql
-   supabase/migrations/20260310135718_schema_only.sql
-   supabase/migrations/20260416120000_add_love_reactions.sql
-   ```
+3. **Apply the schema** — run `neon-schema.sql` against the new database:
 
-   Or via the CLI if you have the DB password:
    ```bash
-   npx supabase db push --linked
+   psql "<your-connection-string>" -f neon-schema.sql
    ```
 
-3. **Confirm tables exist:**
-   - `photos` (with `status`, `wedding_slug`, `love_count`, `is_visible`)
-   - `guestbook_entries` (with `wedding_slug`, `status`)
+   Or paste the contents of `neon-schema.sql` into the Neon SQL Editor.
+
+4. **Confirm tables exist:**
+   - `photos` (with `status`, `wedding_slug`, `love_count`, `is_visible`, `storage_path`, `file_url`)
+   - `guestbook_entries` (with `wedding_slug`, `side`, `is_visible`)
    - `photo_reactions` (with `photo_id`, `ip_hash`)
    - Confirm `react_to_photo(uuid, text)` function exists
 
-4. **Create the storage bucket**
-   - Name: `wedding-photos` (must match the `BUCKET` constant in `worker/src/index.ts`)
-   - Type: Private (the Worker handles all signed URL generation)
-
-5. **Collect credentials** for the next steps:
-   - Project URL (`SUPABASE_URL`)
-   - Anon/public key (`NEXT_PUBLIC_SUPABASE_ANON_KEY`)
-   - Service role key (for the Worker only — never expose in the browser)
+5. **Save the connection string** — you'll use it as `DATABASE_URL` in the next steps.
 
 ---
 
@@ -198,8 +187,8 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
 3. **Set Worker secrets** (run each one and paste the value when prompted):
 
    ```bash
-   npx wrangler secret put SUPABASE_URL
-   npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+   npx wrangler secret put DATABASE_URL
+   npx wrangler secret put UPLOADTHING_TOKEN
    npx wrangler secret put ADMIN_PASSWORD
    npx wrangler secret put CLIENT_PASSWORD
    npx wrangler secret put ADMIN_ORIGIN       # Your Vercel domain, e.g. https://wedding-doe-smith.vercel.app
@@ -212,7 +201,7 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
 4. **Verify the Worker is live:**
    ```bash
    curl https://wedding-doe-smith-worker.YOUR_ACCOUNT.workers.dev/health
-   # Expected: {"ok":true,"url":true,"key":true}
+   # Expected: {"ok":true,"db":true}
    ```
 
 5. **Note the Worker URL** — you'll set this in Vercel next.
@@ -227,8 +216,8 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
 
    | Variable | Value |
    |---|---|
-   | `NEXT_PUBLIC_SUPABASE_URL` | From Supabase project settings |
-   | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | From Supabase project settings |
+   | `DATABASE_URL` | Neon connection string |
+   | `UPLOADTHING_TOKEN` | UploadThing API token |
    | `NEXT_PUBLIC_WEDDING_SLUG` | `doe-smith-2027` |
    | `NEXT_PUBLIC_WORKER_BASE_URL` | `https://wedding-doe-smith-worker.YOUR_ACCOUNT.workers.dev` |
 
@@ -254,9 +243,9 @@ The Worker `wrangler.jsonc` includes three cron triggers:
 
 | Cron | Schedule | Purpose |
 |------|---------|---------|
-| `0 9 * * *` | Daily at 09:00 UTC | Keep-alive ping to prevent Supabase free-tier auto-pause |
+| `0 9 * * *` | Daily at 09:00 UTC | Keep-alive ping (`SELECT 1`) to prevent Worker cold starts |
 | `*/2 * * * *` | Every 2 minutes | Auto-moderate pending photos via HuggingFace NSFW classifier (noop if no `HF_TOKEN`) |
-| `0 10 * * 0` | Sundays at 10:00 UTC | Weekly egress report delivered to Slack / email |
+| `0 10 * * SUN` | Sundays at 10:00 UTC | Weekly report delivered to Slack |
 
 These are active immediately after `wrangler deploy`. Confirm in the Cloudflare
 dashboard under **Workers & Pages → your worker → Triggers → Cron Triggers**.
@@ -286,11 +275,10 @@ curl -H "Authorization: Bearer <ADMIN_PASSWORD>" https://your-worker.workers.dev
 - [ ] `NEXT_PUBLIC_WEDDING_SLUG` set to unique slug for this couple
 - [ ] Background image replaced or confirmed appropriate
 - [ ] Color palette default set in `context/PaletteContext.tsx`
-- [ ] All migrations applied to new Supabase project
-- [ ] Storage bucket `wedding-photos` created (private)
-- [ ] Worker deployed with all 5+ secrets set (including `SLACK_WEBHOOK_URL` if using weekly reports)
-- [ ] Vercel env vars all set and redeployed
-- [ ] `/health` endpoint returns `{"ok":true,...}`
+- [ ] `neon-schema.sql` applied to new Neon project
+- [ ] Worker deployed with all secrets set (`DATABASE_URL`, `UPLOADTHING_TOKEN`, `ADMIN_PASSWORD`, `CLIENT_PASSWORD`, `ADMIN_ORIGIN`, `SITE_ORIGIN`)
+- [ ] Vercel env vars all set (`DATABASE_URL`, `UPLOADTHING_TOKEN`, `NEXT_PUBLIC_WEDDING_SLUG`, `NEXT_PUBLIC_WORKER_BASE_URL`) and redeployed
+- [ ] `/health` endpoint returns `{"ok":true,"db":true}`
 - [ ] Photo upload → approve → gallery flow tested end-to-end
 - [ ] Guestbook submission tested
 - [ ] Admin password works; client password works
@@ -315,12 +303,14 @@ If the Worker also needs a custom subdomain (e.g. `api.thecouplesdomain.com`):
 ## SECTION 12 — PRICING / TIER NOTES
 
 **Current stack — all free tiers:**
-- Supabase Free: 500MB storage, 5GB bandwidth, pauses after 7 days inactive (cron keeps it alive)
-- Vercel Hobby: unlimited deployments, 100GB bandwidth
-- Cloudflare Workers Free: 100k requests/day, 2 cron invocations/day max on paid plan (free: limited)
+- Neon Free: 10 projects, 0.5 GB storage per project, 190 compute hours/month, no auto-pause
+- UploadThing Free: 2 GB storage, 10 GB bandwidth/month
+- Vercel Hobby: unlimited deployments, 100 GB bandwidth
+- Cloudflare Workers Free: 100k requests/day, limited cron invocations
 
 **If the couple needs more:**
-- Supabase Pro ($25/mo): no auto-pause, 8GB storage, point-in-time recovery
+- Neon Launch ($19/mo): 10 GB storage, point-in-time recovery, no compute limits
+- UploadThing Pro ($10/mo): 100 GB storage, 200 GB bandwidth
 - Vercel Pro ($20/mo): team access, password protection, analytics
 - Cloudflare Workers Paid ($5/mo): unlimited cron, 10M requests/day
 
@@ -328,11 +318,11 @@ If the Worker also needs a custom subdomain (e.g. `api.thecouplesdomain.com`):
 - Wedding party bio section (`/wedding-party`)
 - Love story timeline page
 - Custom album groupings in gallery
-- Highlight reel (pinned photos) 
+- Highlight reel (pinned photos)
 - Video embed section
 - Role-based access (e.g. photographer dashboard vs. guest view)
-- Post-wedding "afterglow" mode (read-only archive, download gallery)
+- Post-wedding “afterglow” mode (read-only archive, download gallery)
 
 ---
 
-*This guide reflects the architecture as of April 2026. The codebase uses: Next.js (Pages Router), Supabase (Postgres + Storage), Cloudflare Workers (API + cron), Vercel (frontend hosting).*
+*This guide reflects the architecture as of April 2026. The codebase uses: Next.js (Pages Router), Neon (Postgres), UploadThing (file storage), Cloudflare Workers (API + cron), Vercel (frontend hosting).*

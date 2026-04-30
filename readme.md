@@ -73,7 +73,8 @@ npx wrangler dev               # Worker at http://localhost:8787
 |-------|-----------|
 | Framework | Next.js (Pages Router) + TypeScript |
 | Hosting | Vercel |
-| Database + Storage | Supabase (PostgreSQL + S3-compatible) |
+| Database | Neon (PostgreSQL — serverless) |
+| File Storage | UploadThing |
 | API | Cloudflare Worker (Wrangler 4, TypeScript) |
 | Edge filter | `proxy.ts` — geo, bot, rate-limit |
 | Tests | Jest + Testing Library |

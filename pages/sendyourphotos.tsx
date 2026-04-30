@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
-import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
+import { useUploadThing } from '../lib/uploadthing-client';
 
 // Validate input before submission
 export const validatePhotoSubmission = (
@@ -87,22 +87,6 @@ export default function SendYourPhotos() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
-  const toLabelSlug = (value: string) => {
-    const cleaned = value
-      .toLowerCase()
-      .replace(/[^a-z0-9 ]+/g, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .replace(/ /g, '-')
-      .slice(0, 60);
-
-    if (cleaned) {
-      return cleaned;
-    }
-
-    return `photo-${crypto.randomUUID().slice(0, 8)}`;
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
     if (!selectedFile) return;
@@ -120,6 +104,19 @@ export default function SendYourPhotos() {
     setFile(selectedFile);
     setFileName(selectedFile.name);
   };
+
+  const { startUpload } = useUploadThing('weddingPhotoUpload', {
+    onClientUploadComplete: () => {
+      setToastMessage('Photo uploaded successfully! It will appear after moderation approval.');
+      setShowToast(true);
+      handleReset();
+      setIsSubmitting(false);
+    },
+    onUploadError: (error) => {
+      setErrors([error.message || 'Photo upload failed. Please try again.']);
+      setIsSubmitting(false);
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,68 +138,18 @@ export default function SendYourPhotos() {
       return;
     }
 
+    if (!file) {
+      setErrors(['Please select a photo to upload']);
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      if (!isSupabaseConfigured()) {
-        setToastMessage('Photo uploads are not available yet. We\'re finishing setup — check back soon!');
-        setShowToast(true);
-        return;
-      }
-
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase || !file) {
-        setToastMessage('Upload service is temporarily unavailable. Please try again later.');
-        setShowToast(true);
-        return;
-      }
-
-      const weddingSlug = getWeddingSlug();
-      const ext = file.name.includes('.') ? file.name.split('.').pop()?.toLowerCase() : 'jpg';
-      const labelRaw = shortCaption.trim();
-      const labelSlug = toLabelSlug(labelRaw);
-      const uniqueId = crypto.randomUUID();
-      const finalExt = ext || 'jpg';
-      const storagePath = `uploads/${uniqueId}.${finalExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('wedding-photos')
-        .upload(storagePath, file, {
-          upsert: false,
-          contentType: file.type || undefined,
-        });
-
-      if (uploadError) {
-        setErrors([uploadError.message || 'Photo upload failed. Please try again.']);
-        return;
-      }
-
-      const uploaderName = `${name.trim()} ${familyName.trim()}`.trim();
-      const { error: metadataError } = await supabase.from('photos').insert({
-        wedding_slug: weddingSlug,
-        storage_path: storagePath,
-        label_raw: labelRaw,
-        label_slug: labelSlug,
-        original_filename: file.name,
-        uploader_name: uploaderName,
-        caption: longCaption.trim() || labelRaw,
-        status: 'pending',
-        is_visible: false,
-      });
-
-      if (metadataError) {
-        await supabase.storage.from('wedding-photos').remove([storagePath]);
-        setErrors([metadataError.message || 'Upload metadata failed to save. Please try again.']);
-        return;
-      }
-
-      setToastMessage('Photo uploaded successfully! It will appear after moderation approval.');
-      setShowToast(true);
-      handleReset();
+      await startUpload([file], { name, familyName, shortCaption, longCaption });
     } catch (error) {
       console.error('Submission error:', error);
       setErrors(['Failed to submit photo. Please try again.']);
-    } finally {
       setIsSubmitting(false);
     }
   };

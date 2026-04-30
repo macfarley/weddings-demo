@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
-import { getSupabaseBrowserClient, getWeddingSlug, isSupabaseConfigured } from '../lib/supabase';
+import { getWeddingSlug } from '../lib/supabase';
 
 interface GuestbookEntry {
   id: string;
@@ -197,29 +197,20 @@ export default function GuestbookPublic() {
     setIsSubmitting(true);
 
     try {
-      if (!isSupabaseConfigured()) {
-        setToastMessage('The guestbook is not available yet. We\'re finishing setup — check back soon!');
-        setShowToast(true);
-        return;
-      }
-
-      const supabase = getSupabaseBrowserClient();
-      if (!supabase) {
-        setToastMessage('Guestbook service is temporarily unavailable. Please try again later.');
-        setShowToast(true);
-        return;
-      }
-
-      const payload = {
-        wedding_slug: getWeddingSlug(),
-        display_name: name.trim(),
-        family_name: familyName.trim(),
-        message: message.trim(),
-      };
-
-      const { error } = await supabase.from('guestbook_entries').insert(payload);
-      if (error) {
-        setErrors([error.message || 'Failed to submit message. Please try again.']);
+      const res = await fetch('/api/guestbook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          familyName,
+          message,
+          side: selectedSide,
+          weddingSlug: getWeddingSlug(),
+        }),
+      });
+      const payload = await res.json() as { ok?: boolean; error?: string };
+      if (!res.ok || payload.error) {
+        setErrors([payload.error || 'Failed to submit message. Please try again.']);
         return;
       }
 

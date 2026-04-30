@@ -32,15 +32,16 @@ Browser
   ├─► Next.js (Vercel)            pages/ — public site
   │     ├── proxy.ts              Edge: geo, rate-limit, bot filter (US-only)
   │     ├── pages/gallery.tsx     Reads from Worker /photos/approved
-  │     ├── pages/sendyourphotos  Uploads direct to Supabase Storage (browser key)
+  │     ├── pages/sendyourphotos  Uploads via UploadThing hook (direct to CDN)
+  │     ├── pages/api/guestbook   Server-side POST → Neon insert
   │     └── pages/admin.tsx       Reads/writes through Worker (password-gated)
   │
   └─► Cloudflare Worker           All API surface — no secrets in Next.js runtime
-        ├── GET  /photos/approved  Signed URL list (paginated, sorted)
+        ├── GET  /photos/approved  Photo list (paginated, sorted)
         ├── GET  /photos/pending   Admin: pending moderation queue
-        ├── POST /photos/approve   Admin: move uploads/ → approved/
-        ├── POST /photos/reject    Admin: move uploads/ → trash/
-        ├── POST /photos/purge     Admin: hard-delete from trash
+        ├── POST /photos/approve   Admin: mark approved in DB
+        ├── POST /photos/reject    Admin: mark rejected in DB
+        ├── POST /photos/purge     Admin: hard-delete from DB + UploadThing
         ├── POST /photos/react     Public: toggle love reaction
         ├── GET  /photos/trash     Admin: view trash
         ├── POST /guestbook        Public: submit guestbook entry
@@ -48,22 +49,22 @@ Browser
         ├── GET  /guestbook/pending  Admin: pending guestbook queue
         ├── POST /guestbook/approve  Admin: approve entry
         ├── POST /guestbook/reject   Admin: reject entry
-        ├── GET  /report           Admin: egress/usage report
+        ├── GET  /report           Admin: weekly usage report
         ├── GET  /auth/role        Detect admin vs client token
         └── GET  /health           Deployment secrets check
 
-Supabase (PostgreSQL + Storage)
-  ├── photos table          metadata (filename, label, slug, reactions, status)
-  ├── guestbook_entries     name, message, status
-  └── wedding-photos bucket
-        ├── uploads/        raw guest uploads (pending moderation)
-        ├── approved/       public-safe photos (signed URL served via Worker)
-        └── trash/          rejected photos (soft delete)
+Neon (PostgreSQL — neon.tech)
+  ├── photos table          metadata (storage_path/key, file_url, label, love_count, status)
+  ├── guestbook_entries     display_name, family_name, side, message, is_visible
+  └── photo_reactions       (photo_id, ip_hash) PK — love reaction dedup
+
+UploadThing
+  └── wedding photos        CDN-hosted at https://utfs.io/f/<key>
+                            file.key is stored as storage_path in the photos table
 ```
 
-Photos **never flow directly from Supabase to the browser**. The Worker generates
-short-lived signed URLs and returns them to the client. This protects the bucket
-and prevents scraping.
+Photos **never flow directly to the browser** from storage. UploadThing CDN URLs are
+written to the DB at upload time and returned to clients by the Worker.
 
 ---
 
@@ -75,12 +76,11 @@ and prevents scraping.
 | Runtime | React 19 |
 | Styling | CSS Modules + global CSS, Chakra UI for modals |
 | Theme | Custom `PaletteContext` — 5 named palettes |
-| Database | Supabase (PostgreSQL) |
-| Storage | Supabase Storage (S3-compatible) |
+| Database | Neon (PostgreSQL — serverless, neon.tech) |
+| File Storage | UploadThing (CDN file hosting) |
 | API | Cloudflare Workers (TypeScript, Wrangler 4) |
 | Edge filter | Next.js `proxy.ts` (replaces middleware.ts) |
 | Auth | Password-based (`ADMIN_PASSWORD` / `CLIENT_PASSWORD`) |
-| Egress report | Supabase Edge Function (`supabase/functions/egress-report/`) |
 | Hosting | Vercel (Next.js) + Cloudflare (Worker) |
 | Tests | Jest + Testing Library |
 
@@ -93,20 +93,20 @@ weddings/
 ├── pages/              Next.js pages (Pages Router)
 ├── components/         Shared React components
 ├── context/            React context (PaletteContext)
-├── lib/                Thin utilities (supabase.ts, palettes.ts)
+├── lib/                Thin utilities (supabase.ts exports getWeddingSlug, palettes.ts)
+├── server/             Server-only code (uploadthing.ts file router)
 ├── styles/             CSS (global + per-page + per-component)
 ├── public/             Static assets, robots.txt, font-preview.html
 ├── proxy.ts            Edge bot/geo/rate-limit filter
+├── neon-schema.sql     Full DB schema (apply once to a new Neon project)
 ├── worker/             Cloudflare Worker (separate npm workspace)
 │   └── src/index.ts    All API endpoints
-├── supabase/           Supabase config, migrations, storage stub
-│   └── migrations/     Ordered SQL migration files
 ├── docs/               Project documentation (you are here)
 ├── __tests__/          Jest test suite
 ├── .env.example        All environment variable documentation
 ├── vercel.json         Cache headers
 ├── jest.config.cjs     Test runner config
-└── tsconfig.json       TypeScript config (excludes worker/ and supabase/functions/)
+└── tsconfig.json       TypeScript config (excludes worker/)
 ```
 
 ---
@@ -119,8 +119,8 @@ See `.env.example` for the full annotated list. Summary:
 
 | Variable | Exposure | Purpose |
 |----------|----------|---------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Browser | Supabase project API URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Browser | Supabase anon (public) key |
+| `DATABASE_URL` | Server only | Neon PostgreSQL connection string |
+| `UPLOADTHING_TOKEN` | Server only | UploadThing API token |
 | `NEXT_PUBLIC_WEDDING_SLUG` | Browser | Per-couple DB partition key |
 | `NEXT_PUBLIC_WORKER_BASE_URL` | Browser | Cloudflare Worker URL |
 | `RESTRICT_TO_MIDWEST` | Server (proxy.ts) | Restrict to Midwest US states |
@@ -129,24 +129,15 @@ See `.env.example` for the full annotated list. Summary:
 
 | Variable | Purpose |
 |----------|---------|
-| `SUPABASE_URL` | Worker → Supabase API URL |
-| `SUPABASE_SERVICE_ROLE_KEY` | Worker → Supabase service role |
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `UPLOADTHING_TOKEN` | UploadThing API token |
 | `ADMIN_PASSWORD` | Admin UI authentication |
 | `CLIENT_PASSWORD` | Couple / family access token |
 | `ADMIN_ORIGIN` | CORS allowed origin for admin |
 | `SITE_ORIGIN` | CORS allowed origin(s) for public site |
 | `HF_TOKEN` | HuggingFace NSFW classifier token |
-| `SLACK_WEBHOOK_URL` | Weekly egress report Slack webhook |
+| `SLACK_WEBHOOK_URL` | Weekly report Slack webhook |
 | `RESTRICT_TO_MIDWEST` | Block non-Midwest states at Worker level |
-
-### Supabase Edge Function (set via `supabase secrets set`)
-
-| Variable | Purpose |
-|----------|---------|
-| `SLACK_WEBHOOK_URL` | Egress report Slack delivery |
-| `RESEND_API_KEY` | Egress report email delivery via Resend |
-| `RESEND_TO` | Recipient email for reports |
-| `RESEND_FROM` | Sender address for reports |
 
 ---
 
@@ -175,37 +166,38 @@ npx wrangler dev
 Set `NEXT_PUBLIC_WORKER_BASE_URL=http://localhost:8787` in `.env.local` to point
 the Next.js app at your local worker.
 
-To run Supabase locally:
-
-```bash
-npm run db:start       # starts local Supabase stack (Docker required)
-npm run db:reset       # applies all migrations fresh
-npm run db:stop        # shuts down Docker containers
-```
-
 ---
 
 ## 6. Database & Migrations
 
-Migrations live in `supabase/migrations/` and are numbered by timestamp.
+The full schema lives in `neon-schema.sql` at the repo root. Apply it once to a new Neon project:
 
 ```bash
-npm run db:migration:new <name>   # scaffold a new migration file
-npm run db:push                   # apply pending migrations to remote
-npm run db:pull                   # sync remote schema to local
+psql "<DATABASE_URL>" -f neon-schema.sql
 ```
+
+All statements use `CREATE IF NOT EXISTS` — safe to re-run for upgrades.
 
 **Key tables:**
 
-- `photos` — `id`, `filename`, `label`, `wedding_slug`, `status` (pending/approved/rejected), `love_reactions`, `created_at`
-- `guestbook_entries` — `id`, `name`, `family_name`, `message`, `wedding_slug`, `status`, `created_at`
+- `photos` — `id`, `storage_path` (UploadThing file key), `file_url`, `label_raw`, `label_slug`, `wedding_slug`, `status` (pending/approved/rejected/flagged), `love_count`, `is_visible`, `created_at`
+- `guestbook_entries` — `id`, `display_name`, `family_name`, `side`, `message`, `wedding_slug`, `is_visible`, `created_at`
+- `photo_reactions` — `(photo_id, ip_hash)` primary key — deduplicates love reactions per IP per photo
 
-**Storage bucket:** `wedding-photos`  
-Prefix convention: `uploads/{slug}/`, `approved/{slug}/`, `trash/{slug}/`
+**`react_to_photo(uuid, text)` function:** Atomic upsert — inserts a reaction row and increments `love_count` in one transaction. Silently ignores duplicate IPs.
 
-**RLS:** Row-level security is configured so the anon key can only insert to
-`guestbook_entries` and read approved rows. All moderation reads/writes require
-the service role key (Worker only).
+**File storage:** UploadThing CDN (`https://utfs.io/f/<key>`). The file key is stored as `storage_path` in the `photos` table. There is no folder/prefix structure — keys are flat UUIDs assigned by UploadThing.
+
+**No RLS:** Access is controlled at the Worker layer. The `DATABASE_URL` connection string is the only credential needed — keep it secret.
+
+**To add a new column:**
+
+```sql
+-- Run via psql or the Neon SQL editor:
+ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
+```
+
+Then update `neon-schema.sql` to document it.
 
 ---
 
@@ -290,22 +282,15 @@ npx wrangler deploy
 Secrets are set separately from code:
 
 ```bash
+npx wrangler secret put DATABASE_URL
+npx wrangler secret put UPLOADTHING_TOKEN
 npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put CLIENT_PASSWORD
-npx wrangler secret put SUPABASE_URL
-npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 npx wrangler secret put SITE_ORIGIN
 npx wrangler secret put ADMIN_ORIGIN
 npx wrangler secret put HF_TOKEN              # optional
 npx wrangler secret put SLACK_WEBHOOK_URL     # optional
 npx wrangler secret put RESTRICT_TO_MIDWEST   # optional
-```
-
-### Supabase
-
-```bash
-npm run db:push          # apply pending migrations to remote project
-supabase functions deploy egress-report   # deploy the weekly report Edge Function
 ```
 
 ---
@@ -372,12 +357,12 @@ npx wrangler secret put <SECRET_NAME>
 # No need to redeploy — secrets take effect immediately
 ```
 
-### Add a new DB migration
+### Add a new DB column
 
-```bash
-npm run db:migration:new add_column_foo
-# Edit supabase/migrations/<timestamp>_add_column_foo.sql
-npm run db:push
+```sql
+-- Run via psql or the Neon SQL editor:
+ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
+-- Then update neon-schema.sql to document the change.
 ```
 
 ---
@@ -386,7 +371,6 @@ npm run db:push
 
 | File | Classification | Notes |
 |------|---------------|-------|
-| `supabase/storage.ts` | ACTIVE-ALTERNATE | Hook point for future client-side storage helpers. Currently just a comment block. |
 | `pages/upload.tsx` | ACTIVE-ALTERNATE | Redirects to `/sendyourphotos`. Kept because some QR code flyer v1 links pointed here, and robots.txt blocks this path. |
 | `pages/demo.tsx` | ACTIVE-ALTERNATE | Dev tool — renders Gallery component with live Worker data. Not linked in NavBar. |
 | `pages/fonts.tsx` | ACTIVE-ALTERNATE | Dev tool — renders `/font-preview.html` in an iframe. Not linked in NavBar. |
@@ -409,9 +393,9 @@ npm run db:push
 
 ### Photo upload fails silently
 
-1. Check `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` are set.
+1. Check `UPLOADTHING_TOKEN` is set in Vercel env vars.
 2. Look for `console.error('Submission error')` in the browser console.
-3. If storage error: Check Supabase bucket RLS policy allows anon inserts.
+3. If UploadThing returns 403: token is wrong or expired — regenerate at [uploadthing.com](https://uploadthing.com).
 4. If validation error: See `validatePhotoSubmission` in `pages/sendyourphotos.tsx`.
 
 ### Worker returns 403 for all requests
