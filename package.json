@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "test": "jest",
-    "test:watch": "jest --watch"
+    "test:watch": "jest --watch",
+    "test:e2e": "playwright test",
+    "test:e2e:upload": "RUN_UPLOAD_TEST=1 playwright test e2e/upload.spec.ts"
   },
   "dependencies": {
     "@chakra-ui/react": "latest",
@@ -23,6 +25,7 @@
     "uploadthing": "^7.7.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

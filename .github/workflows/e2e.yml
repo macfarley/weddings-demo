@@ -1,0 +1,62 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  # Manual dispatch lets you trigger the write tests on demand
+  workflow_dispatch:
+    inputs:
+      run_upload_test:
+        description: 'Run upload/write integration tests (writes real rows to production DB)'
+        type: boolean
+        default: false
+
+jobs:
+  e2e:
+    name: Playwright E2E
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      E2E_BASE_URL: https://weddings-demo.vercel.app
+      E2E_WORKER_BASE_URL: https://worker.therealmccoyster.workers.dev
+      NEXT_PUBLIC_WEDDING_SLUG: may-collins-2026
+      # Only set when manually dispatched with the checkbox enabled
+      RUN_UPLOAD_TEST: ${{ github.event.inputs.run_upload_test == 'true' && '1' || '' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run smoke tests (always)
+        run: npx playwright test e2e/smoke.spec.ts
+
+      - name: Run upload integration tests (manual only)
+        if: github.event.inputs.run_upload_test == 'true'
+        run: npx playwright test e2e/upload.spec.ts
+        env:
+          RUN_UPLOAD_TEST: '1'
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
