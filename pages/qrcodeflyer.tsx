@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import Head from 'next/head';
 import QRCode from 'react-qr-code';
 
@@ -6,20 +5,30 @@ const SITE_URL = 'https://www.john-and-crystal-may.wedding/sendyourphotos';
 const DISPLAY_URL = 'www.John-and-Crystal-May.wedding';
 
 export default function QRCodeFlyer() {
-  // Auto-open print/save-as-PDF dialog on load
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      window.print();
-    }, 600);
-    return () => clearTimeout(timeout);
-  }, []);
-
   return (
     <>
       <Head>
         <title>Share Your Photos – John & Crystal's Wedding</title>
         <meta name="robots" content="noindex" />
       </Head>
+
+      <div className="no-print" style={{ textAlign: 'center', padding: '1rem 0 0.5rem' }}>
+        <button
+          onClick={() => window.print()}
+          style={{
+            background: '#b5294e',
+            color: '#fff',
+            border: 'none',
+            borderRadius: '0.5rem',
+            padding: '0.6rem 1.6rem',
+            fontSize: '1rem',
+            cursor: 'pointer',
+            fontFamily: 'Georgia, serif',
+          }}
+        >
+          🖨️ Save as PDF / Print
+        </button>
+      </div>
 
       <div className="flyer-page">
         {/* Top heading */}

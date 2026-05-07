@@ -29,14 +29,15 @@ import '../styles/components/navbar.css';
 export default function MyApp({ Component, pageProps }) {
   const router = useRouter();
   const isInProgressRoute = router.pathname === '/under-construction';
+  const isFlyerRoute = router.pathname === '/qrcodeflyer';
 
   return (
     <ChakraProvider value={system}>
       <PaletteProvider>
-        {!isInProgressRoute && <NavBar />}
+        {!isInProgressRoute && !isFlyerRoute && <NavBar />}
         <Component {...pageProps} />
-        {!isInProgressRoute && <SiteFooter />}
-        <PrivacyNoticeBanner />
+        {!isInProgressRoute && !isFlyerRoute && <SiteFooter />}
+        {!isFlyerRoute && <PrivacyNoticeBanner />}
       </PaletteProvider>
     </ChakraProvider>
   );
