@@ -95,7 +95,9 @@ const CLIENT_ROUTES = new Set([
 	'POST /photos/approve',
 	'POST /photos/reject',
 	'GET /guestbook/pending',
+	'GET /guestbook/all',
 	'POST /guestbook/approve',
+	'POST /guestbook/trash',
 	'GET /admin/stats',
 	'GET /auth/role',
 	'GET /list-uploads',
@@ -232,10 +234,14 @@ export default {
 					return withCors(request, env, await purgePhotoById(request, env));
 				case 'GET /guestbook/pending':
 					return withCors(request, env, await listPendingGuestbook(env));
+				case 'GET /guestbook/all':
+					return withCors(request, env, await listAllGuestbook(env, url));
 				case 'GET /guestbook/approved':
 					return withCors(request, env, await listApprovedGuestbook(env, url));
 				case 'POST /guestbook/approve':
 					return withCors(request, env, await approveGuestbookById(request, env));
+				case 'POST /guestbook/trash':
+					return withCors(request, env, await trashGuestbookById(request, env));
 				case 'POST /guestbook/delete':
 					return withCors(request, env, await deleteGuestbookById(request, env));
 				case 'GET /admin/stats':
@@ -643,6 +649,19 @@ async function listApprovedGuestbook(env: WorkerEnv, url: URL): Promise<Response
 	}
 }
 
+async function listAllGuestbook(env: WorkerEnv, url: URL): Promise<Response> {
+	const weddingSlug = (url.searchParams.get('wedding_slug') || '').trim();
+	try {
+		const sql = getDb(env);
+		const data = weddingSlug
+			? await sql`SELECT id, display_name, family_name, message, side, is_visible, created_at FROM guestbook_entries WHERE wedding_slug=${weddingSlug} ORDER BY created_at DESC LIMIT 500`
+			: await sql`SELECT id, display_name, family_name, message, side, is_visible, created_at FROM guestbook_entries ORDER BY created_at DESC LIMIT 500`;
+		return json({ data }, 200);
+	} catch (err) {
+		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
+	}
+}
+
 async function approveGuestbookById(request: Request, env: WorkerEnv): Promise<Response> {
 	const body = await readJson<{ id?: string }>(request);
 	if (!body.id) return json({ error: 'id is required' }, 400);
@@ -650,6 +669,19 @@ async function approveGuestbookById(request: Request, env: WorkerEnv): Promise<R
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE guestbook_entries SET is_visible=true WHERE id=${body.id}::uuid`;
+		return json({ data: { ok: true, id: body.id } }, 200);
+	} catch (err) {
+		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
+	}
+}
+
+async function trashGuestbookById(request: Request, env: WorkerEnv): Promise<Response> {
+	const body = await readJson<{ id?: string }>(request);
+	if (!body.id) return json({ error: 'id is required' }, 400);
+
+	try {
+		const sql = getDb(env);
+		await sql`UPDATE guestbook_entries SET is_visible=false WHERE id=${body.id}::uuid`;
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
