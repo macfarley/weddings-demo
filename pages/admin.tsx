@@ -21,7 +21,8 @@ type GuestbookEntry = {
   family_name: string | null;
   message: string;
   created_at: string;
-  is_visible?: boolean;
+  is_visible: boolean;
+  side?: string | null;
 };
 
 type AdminStats = {
@@ -58,7 +59,8 @@ function formatDate(value?: string): string {
 export default function AdminPage() {
   const { palette } = usePalette();
   const [workerBaseUrl, setWorkerBaseUrl] = useState(process.env.NEXT_PUBLIC_WORKER_BASE_URL || '');
-  const [uploads, setUploads] = useState<UploadItem[]>([]);
+  const [pendingPhotos, setPendingPhotos] = useState<UploadItem[]>([]);
+  const [approvedPhotos, setApprovedPhotos] = useState<UploadItem[]>([]);
   const [trashPhotos, setTrashPhotos] = useState<UploadItem[]>([]);
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
   const [stats, setStats] = useState<AdminStats>({ pending_photos: 0, pending_guestbook: 0 });
@@ -71,6 +73,8 @@ export default function AdminPage() {
   const [authPassword, setAuthPassword] = useState('');
   const [authError, setAuthError] = useState('');
   const [userRole, setUserRole] = useState<'admin' | 'client' | null>(null);
+  // confirmId encodes both action and item: e.g. "trash-photo:uuid" or "purge-photo:uuid"
+  const [confirmId, setConfirmId] = useState<string | null>(null);
 
   const normalizedBaseUrl = useMemo(() => cleanBaseUrl(workerBaseUrl), [workerBaseUrl]);
 
@@ -152,14 +156,16 @@ export default function AdminPage() {
 
     setLoading(true);
     try {
-      const [uploadsData, trashData, guestbookData, statsData] = await Promise.all([
+      const [pendingData, approvedData, trashData, guestbookData, statsData] = await Promise.all([
         fetchJson<UploadItem[]>('/photos/pending'),
+        fetchJson<{ data: UploadItem[]; total: number }>('/photos/approved?per_page=100').then((r) => r.data ?? []),
         fetchJson<UploadItem[]>('/photos/trash'),
-        fetchJson<GuestbookEntry[]>('/guestbook/pending'),
+        fetchJson<GuestbookEntry[]>('/guestbook/all'),
         fetchJson<AdminStats>('/admin/stats'),
       ]);
 
-      setUploads(Array.isArray(uploadsData) ? uploadsData : []);
+      setPendingPhotos(Array.isArray(pendingData) ? pendingData : []);
+      setApprovedPhotos(Array.isArray(approvedData) ? approvedData : []);
       setTrashPhotos(Array.isArray(trashData) ? trashData : []);
       setGuestbookEntries(Array.isArray(guestbookData) ? guestbookData : []);
       setStats(statsData || { pending_photos: 0, pending_guestbook: 0 });
@@ -191,7 +197,7 @@ export default function AdminPage() {
         body: JSON.stringify({ id }),
       });
 
-      setUploads((current) => current.filter((item) => item.id !== id));
+      setPendingPhotos((current) => current.filter((item) => item.id !== id));
       setStats((current) => ({ ...current, pending_photos: Math.max(0, current.pending_photos - 1) }));
       setStatusMessage('Photo approved.');
     } catch (err) {
@@ -202,22 +208,24 @@ export default function AdminPage() {
     }
   }, [fetchJson, withActionState]);
 
-  const rejectPhoto = useCallback(async (id: string) => {
-    const actionKey = `reject:${id}`;
+  const trashPhoto = useCallback(async (id: string) => {
+    const actionKey = `trash:${id}`;
     withActionState(actionKey, true);
     setError('');
     setStatusMessage('');
+    setConfirmId(null);
     try {
       await fetchJson('/photos/reject', {
         method: 'POST',
         body: JSON.stringify({ id }),
       });
 
-      setUploads((current) => current.filter((item) => item.id !== id));
+      setPendingPhotos((current) => current.filter((item) => item.id !== id));
+      setApprovedPhotos((current) => current.filter((item) => item.id !== id));
       setStats((current) => ({ ...current, pending_photos: Math.max(0, current.pending_photos - 1) }));
-      setStatusMessage('Photo rejected.');
+      setStatusMessage('Photo moved to trash.');
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Delete failed.';
+      const message = err instanceof Error ? err.message : 'Trash failed.';
       setError(message);
     } finally {
       withActionState(actionKey, false);
@@ -229,6 +237,7 @@ export default function AdminPage() {
     withActionState(actionKey, true);
     setError('');
     setStatusMessage('');
+    setConfirmId(null);
     try {
       await fetchJson('/photos/purge', {
         method: 'POST',
@@ -239,6 +248,52 @@ export default function AdminPage() {
       setStatusMessage('Photo permanently deleted.');
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Purge failed.';
+      setError(message);
+    } finally {
+      withActionState(actionKey, false);
+    }
+  }, [fetchJson, withActionState]);
+
+  const trashGuestbook = useCallback(async (id: string) => {
+    const actionKey = `gb-trash:${id}`;
+    withActionState(actionKey, true);
+    setError('');
+    setStatusMessage('');
+    setConfirmId(null);
+    try {
+      await fetchJson('/guestbook/trash', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+
+      setGuestbookEntries((current) =>
+        current.map((e) => (e.id === id ? { ...e, is_visible: false } : e)),
+      );
+      setStatusMessage('Guestbook entry hidden.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Trash failed.';
+      setError(message);
+    } finally {
+      withActionState(actionKey, false);
+    }
+  }, [fetchJson, withActionState]);
+
+  const purgeGuestbook = useCallback(async (id: string) => {
+    const actionKey = `gb-purge:${id}`;
+    withActionState(actionKey, true);
+    setError('');
+    setStatusMessage('');
+    setConfirmId(null);
+    try {
+      await fetchJson('/guestbook/delete', {
+        method: 'POST',
+        body: JSON.stringify({ id }),
+      });
+
+      setGuestbookEntries((current) => current.filter((e) => e.id !== id));
+      setStatusMessage('Guestbook entry permanently deleted.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Delete failed.';
       setError(message);
     } finally {
       withActionState(actionKey, false);
@@ -299,59 +354,131 @@ export default function AdminPage() {
     void refreshData();
   }, [normalizedBaseUrl, refreshData]);
 
-  const approveGuestbook = useCallback(async (id: string) => {
-    const actionKey = `guestbook-approve:${id}`;
-    withActionState(actionKey, true);
-    setError('');
-    setStatusMessage('');
-    try {
-      await fetchJson('/guestbook/approve', {
-        method: 'POST',
-        body: JSON.stringify({ id }),
-      });
+  // ── Inline confirm helpers ─────────────────────────────────────────────────
+  const requestConfirm = (key: string) => setConfirmId(key);
+  const cancelConfirm = () => setConfirmId(null);
 
-      setGuestbookEntries((current) => current.filter((entry) => entry.id !== id));
-      setStats((current) => ({ ...current, pending_guestbook: Math.max(0, current.pending_guestbook - 1) }));
-      setStatusMessage('Guestbook entry approved.');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Guestbook approve failed.';
-      setError(message);
-    } finally {
-      withActionState(actionKey, false);
-    }
-  }, [fetchJson, withActionState]);
+  // ── Photo card ────────────────────────────────────────────────────────────
+  function PhotoCard({
+    item,
+    showApprove = false,
+    trashActionKey,
+    purgeActionKey,
+  }: {
+    item: UploadItem;
+    showApprove?: boolean;
+    trashActionKey?: string;
+    purgeActionKey?: string;
+  }) {
+    const title = item.label_raw || item.original_filename || item.filename || item.storage_path;
+    const trashConfirm = trashActionKey ? `${trashActionKey}:${item.id}` : null;
+    const purgeConfirm = purgeActionKey ? `${purgeActionKey}:${item.id}` : null;
+    const busy = Boolean(
+      actionState[`approve:${item.id}`] ||
+      actionState[`trash:${item.id}`] ||
+      actionState[`purge:${item.id}`],
+    );
+    return (
+      <li className="admin-list-item">
+        {item.image_url && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={item.image_url} alt={title} className="admin-card-thumb" />
+        )}
+        <div className="admin-item-meta">
+          <strong>{title}</strong>
+          {item.uploader_name && <span>By: {item.uploader_name}</span>}
+          {item.caption && <span>{item.caption}</span>}
+          <span>{formatDate(item.created_at)}</span>
+        </div>
+        <div className="admin-card-actions">
+          {showApprove && (
+            <button
+              className="admin-inline-button"
+              onClick={() => approvePhoto(item.id)}
+              disabled={busy}
+              style={{ backgroundColor: palette.primary }}
+            >
+              ✓ Approve
+            </button>
+          )}
+          {trashConfirm && (
+            confirmId === trashConfirm ? (
+              <span className="admin-confirm-row">
+                <span className="admin-confirm-label">Are you sure?</span>
+                <button className="admin-inline-button admin-delete" onClick={() => trashPhoto(item.id)} disabled={busy}>Yes, trash it</button>
+                <button className="admin-inline-button admin-cancel" onClick={cancelConfirm}>Cancel</button>
+              </span>
+            ) : (
+              <button className="admin-x-button" aria-label="Move to trash" onClick={() => requestConfirm(trashConfirm)} disabled={busy}>✕</button>
+            )
+          )}
+          {purgeConfirm && userRole === 'admin' && (
+            confirmId === purgeConfirm ? (
+              <span className="admin-confirm-row">
+                <span className="admin-confirm-label">Permanently delete?</span>
+                <button className="admin-inline-button admin-delete" onClick={() => purgePhoto(item.id)} disabled={busy}>Yes, purge</button>
+                <button className="admin-inline-button admin-cancel" onClick={cancelConfirm}>Cancel</button>
+              </span>
+            ) : (
+              <button className="admin-x-button" aria-label="Permanently delete" onClick={() => requestConfirm(purgeConfirm)} disabled={busy}>✕</button>
+            )
+          )}
+        </div>
+      </li>
+    );
+  }
 
-  const deleteGuestbook = useCallback(async (id: string) => {
-    const actionKey = `guestbook-delete:${id}`;
-    withActionState(actionKey, true);
-    setError('');
-    setStatusMessage('');
-    try {
-      await fetchJson('/guestbook/delete', {
-        method: 'POST',
-        body: JSON.stringify({ id }),
-      });
-
-      setGuestbookEntries((current) => current.filter((entry) => entry.id !== id));
-      setStats((current) => ({ ...current, pending_guestbook: Math.max(0, current.pending_guestbook - 1) }));
-      setStatusMessage('Guestbook entry deleted.');
-    } catch (err) {
-      const message = err instanceof Error ? err.message : 'Guestbook delete failed.';
-      setError(message);
-    } finally {
-      withActionState(actionKey, false);
-    }
-  }, [fetchJson, withActionState]);
+  // ── Guestbook card ────────────────────────────────────────────────────────
+  function GuestbookCard({ entry }: { entry: GuestbookEntry }) {
+    const trashConfirm = `gb-trash:${entry.id}`;
+    const purgeConfirm = `gb-purge:${entry.id}`;
+    const busy = Boolean(actionState[`gb-trash:${entry.id}`] || actionState[`gb-purge:${entry.id}`]);
+    return (
+      <li className={`admin-list-item ${entry.is_visible ? '' : 'admin-item-hidden'}`}>
+        <div className="admin-item-meta">
+          <strong>
+            {entry.display_name || 'Guest'}{entry.family_name ? ` (${entry.family_name})` : ''}
+            {entry.side && <span className="admin-side-badge"> · {entry.side}</span>}
+            {!entry.is_visible && <span className="admin-hidden-badge"> · hidden</span>}
+          </strong>
+          <span className="admin-message-text">{entry.message}</span>
+          <span>{formatDate(entry.created_at)}</span>
+        </div>
+        <div className="admin-card-actions">
+          {entry.is_visible ? (
+            confirmId === trashConfirm ? (
+              <span className="admin-confirm-row">
+                <span className="admin-confirm-label">Are you sure?</span>
+                <button className="admin-inline-button admin-delete" onClick={() => trashGuestbook(entry.id)} disabled={busy}>Yes, hide it</button>
+                <button className="admin-inline-button admin-cancel" onClick={cancelConfirm}>Cancel</button>
+              </span>
+            ) : (
+              <button className="admin-x-button" aria-label="Hide entry" onClick={() => requestConfirm(trashConfirm)} disabled={busy}>✕</button>
+            )
+          ) : (
+            userRole === 'admin' && (
+              confirmId === purgeConfirm ? (
+                <span className="admin-confirm-row">
+                  <span className="admin-confirm-label">Permanently delete?</span>
+                  <button className="admin-inline-button admin-delete" onClick={() => purgeGuestbook(entry.id)} disabled={busy}>Yes, delete</button>
+                  <button className="admin-inline-button admin-cancel" onClick={cancelConfirm}>Cancel</button>
+                </span>
+              ) : (
+                <button className="admin-x-button" aria-label="Permanently delete" onClick={() => requestConfirm(purgeConfirm)} disabled={busy}>✕</button>
+              )
+            )
+          )}
+        </div>
+      </li>
+    );
+  }
 
   return (
     <div className="page-container">
       <main className="main-content">
         <section
           className={`section-full admin-page-container ${showAuthModal ? 'admin-locked' : ''}`}
-          style={{
-            color: palette.text,
-            borderColor: palette.primary,
-          }}
+          style={{ color: palette.text, borderColor: palette.primary }}
           aria-hidden={showAuthModal}
         >
           <h1 className="page-title admin-title" style={{ color: palette.primary }}>
@@ -359,10 +486,9 @@ export default function AdminPage() {
           </h1>
 
           <p className="admin-status">
-            Pending photos: {stats.pending_photos} · Pending guestbook: {stats.pending_guestbook}
+            Pending: {stats.pending_photos} · Approved: {approvedPhotos.length} · Trash: {trashPhotos.length} · Guestbook: {guestbookEntries.length}
           </p>
 
-          {/* Quick links */}
           <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '1rem' }}>
             <a
               href="/qrcodeflyer"
@@ -398,7 +524,7 @@ export default function AdminPage() {
               disabled={loading}
               style={{ backgroundColor: palette.primary }}
             >
-              {loading ? 'Loading…' : 'Load'}
+              {loading ? 'Loading…' : 'Refresh'}
             </button>
           </div>
 
@@ -406,129 +532,68 @@ export default function AdminPage() {
           {statusMessage && <p className="admin-status">{statusMessage}</p>}
 
           <div className="admin-grid">
-            <div className="admin-panel" style={{ borderColor: palette.primary }}>
-              <h2 style={{ color: palette.primary }}>Pending Photos ({uploads.length})</h2>
-              {uploads.length === 0 ? (
-                <p className="admin-empty">No pending photos.</p>
-              ) : (
-                <ul className="admin-list">
-                  {uploads.map((item) => {
-                    const approveKey = `approve:${item.id}`;
-                    const rejectKey = `reject:${item.id}`;
-                    const title = item.label_raw || item.original_filename || item.filename || item.storage_path;
-                    return (
-                      <li key={item.id} className="admin-list-item">
-                        <div className="admin-item-meta">
-                          <strong>{title}</strong>
-                          {item.label_slug && <span>Slug: {item.label_slug}</span>}
-                          {item.uploader_name && <span>By: {item.uploader_name}</span>}
-                          {item.caption && <span>{item.caption}</span>}
-                          <span>Created: {formatDate(item.created_at)}</span>
-                        </div>
-                        <div className="admin-actions">
-                          <button
-                            className="admin-inline-button"
-                            onClick={() => approvePhoto(item.id)}
-                            disabled={Boolean(actionState[approveKey] || actionState[rejectKey])}
-                            style={{ backgroundColor: palette.primary }}
-                          >
-                            Approve
-                          </button>
-                          <button
-                            className="admin-inline-button admin-delete"
-                            onClick={() => rejectPhoto(item.id)}
-                            disabled={Boolean(actionState[approveKey] || actionState[rejectKey])}
-                          >
-                            Reject
-                          </button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
 
-            <div className="admin-panel admin-panel-nsfw">
-              <h2 className="admin-nsfw-heading">&#9888; Possibly NSFW &#8212; Auto-moderated Trash ({trashPhotos.length})</h2>
-              {trashPhotos.length === 0 ? (
-                <p className="admin-empty">No trashed photos.</p>
+            {/* ── Approved Gallery ───────────────────────────────────────── */}
+            <div className="admin-panel admin-panel-full" style={{ borderColor: palette.primary }}>
+              <h2 style={{ color: palette.primary }}>✓ Gallery — Approved ({approvedPhotos.length})</h2>
+              {approvedPhotos.length === 0 ? (
+                <p className="admin-empty">No approved photos yet.</p>
               ) : (
-                <ul className="admin-list">
-                  {trashPhotos.map((item) => {
-                    const purgeKey = `purge:${item.id}`;
-                    const title = item.label_raw || item.original_filename || item.filename || item.storage_path;
-                    return (
-                      <li key={item.id} className="admin-list-item">
-                        {item.image_url && (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={item.image_url}
-                            alt={title}
-                            className="admin-trash-thumb"
-                          />
-                        )}
-                        <div className="admin-item-meta">
-                          <strong>{title}</strong>
-                          {item.uploader_name && <span>By: {item.uploader_name}</span>}
-                          {item.caption && <span>{item.caption}</span>}
-                          <span>Created: {formatDate(item.created_at)}</span>
-                        </div>
-                        <div className="admin-actions">
-                          {userRole === 'admin' && (
-                            <button
-                              className="admin-inline-button admin-delete"
-                              onClick={() => purgePhoto(item.id)}
-                              disabled={Boolean(actionState[purgeKey])}
-                            >
-                              Purge
-                            </button>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ul>
-              )}
-            </div>
-
-            <div className="admin-panel" style={{ borderColor: palette.primary }}>
-              <h2 style={{ color: palette.primary }}>Pending Guestbook Entries ({guestbookEntries.length})</h2>
-              {guestbookEntries.length === 0 ? (
-                <p className="admin-empty">No pending guestbook entries.</p>
-              ) : (
-                <ul className="admin-list">
-                  {guestbookEntries.map((entry) => (
-                    <li key={entry.id} className="admin-list-item">
-                      <div className="admin-item-meta">
-                        <strong>{entry.display_name || 'Guest'} {entry.family_name ? `(${entry.family_name})` : ''}</strong>
-                        <span>{entry.message}</span>
-                        <span>Created: {formatDate(entry.created_at)}</span>
-                      </div>
-                      <div className="admin-actions">
-                        <button
-                          className="admin-inline-button"
-                          onClick={() => approveGuestbook(entry.id)}
-                          disabled={Boolean(actionState[`guestbook-approve:${entry.id}`] || actionState[`guestbook-delete:${entry.id}`])}
-                          style={{ backgroundColor: palette.primary }}
-                        >
-                          Approve
-                        </button>
-                        {userRole === 'admin' && (
-                          <button
-                            className="admin-inline-button admin-delete"
-                            onClick={() => deleteGuestbook(entry.id)}
-                            disabled={Boolean(actionState[`guestbook-approve:${entry.id}`] || actionState[`guestbook-delete:${entry.id}`])}
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </li>
+                <ul className="admin-list admin-list-grid">
+                  {approvedPhotos.map((item) => (
+                    <PhotoCard key={item.id} item={item} trashActionKey="trash" />
                   ))}
                 </ul>
               )}
             </div>
+
+            {/* ── Pending ────────────────────────────────────────────────── */}
+            <div className="admin-panel" style={{ borderColor: palette.primary }}>
+              <h2 style={{ color: palette.primary }}>⏳ Pending — Unclassified ({pendingPhotos.length})</h2>
+              {pendingPhotos.length === 0 ? (
+                <p className="admin-empty">No pending photos.</p>
+              ) : (
+                <ul className="admin-list">
+                  {pendingPhotos.map((item) => (
+                    <PhotoCard key={item.id} item={item} showApprove trashActionKey="trash" />
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* ── Trash ──────────────────────────────────────────────────── */}
+            <div className="admin-panel admin-panel-nsfw">
+              <h2 className="admin-nsfw-heading">🗑 Trash — Auto-flagged &amp; Rejected ({trashPhotos.length})</h2>
+              {trashPhotos.length === 0 ? (
+                <p className="admin-empty">Trash is empty.</p>
+              ) : (
+                <ul className="admin-list">
+                  {trashPhotos.map((item) => (
+                    <PhotoCard key={item.id} item={item} purgeActionKey="purge" />
+                  ))}
+                </ul>
+              )}
+              {userRole !== 'admin' && trashPhotos.length > 0 && (
+                <p className="admin-empty" style={{ marginTop: '0.5rem', fontSize: '0.8rem' }}>
+                  Permanent deletion requires full admin access.
+                </p>
+              )}
+            </div>
+
+            {/* ── Guestbook ──────────────────────────────────────────────── */}
+            <div className="admin-panel admin-panel-full" style={{ borderColor: palette.primary }}>
+              <h2 style={{ color: palette.primary }}>💬 All Guestbook Entries ({guestbookEntries.length})</h2>
+              {guestbookEntries.length === 0 ? (
+                <p className="admin-empty">No guestbook entries yet.</p>
+              ) : (
+                <ul className="admin-list admin-list-guestbook">
+                  {guestbookEntries.map((entry) => (
+                    <GuestbookCard key={entry.id} entry={entry} />
+                  ))}
+                </ul>
+              )}
+            </div>
+
           </div>
         </section>
 
