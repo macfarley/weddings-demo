@@ -44,7 +44,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 		const sql = getDb();
 		await sql`
 			INSERT INTO guestbook_entries (wedding_slug, display_name, family_name, message, side, is_visible)
-			VALUES (${getWeddingSlug()}, ${name.trim()}, ${familyName.trim()}, ${message.trim()}, ${safeSide}, false)
+			VALUES (${getWeddingSlug()}, ${name.trim()}, ${familyName.trim()}, ${message.trim()}, ${safeSide}, true)
 		`;
 		return res.status(200).json({ ok: true });
 	} catch (err) {
