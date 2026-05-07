@@ -263,9 +263,20 @@ curl -H "Authorization: Bearer <ADMIN_PASSWORD>" https://your-worker.workers.dev
 2. Go to `/admin` → log in with `CLIENT_PASSWORD` → approve the photo
 3. Go to `/gallery` — confirm the photo appears
 4. Click the ❤️ love button — confirm the count increments
-5. Go to `/guestbook` — submit a test message
-6. Go to `/admin` → confirm the guestbook entry is visible
+5. Go to `/guestbook` — submit a test message → it should appear **immediately** in the guestbook (no approval needed)
+6. Go to `/admin` → confirm the guestbook entry appears in the **All Guestbook Entries** panel with a ✕ button if you need to hide it
 7. Go to `/program` — confirm correct date and schedule
+
+### Admin dashboard panels
+
+The `/admin` page has four content sections:
+
+| Panel | What it shows | Your controls |
+|-------|--------------|---------------|
+| ✓ Gallery — Approved | All visible gallery photos | ✕ → "Are you sure?" → moves to Trash |
+| ⏳ Pending — Unclassified | Photos the auto-moderator couldn't classify (no `HF_TOKEN`, or below its confidence threshold) | ✓ Approve or ✕ Trash |
+| 🗑 Trash | Auto-flagged NSFW + manually trashed photos | ✕ → confirm → permanent purge (admin password only) |
+| 💬 All Guestbook Entries | Every guestbook message, visible or hidden | ✕ → "Are you sure?" → hides from public; purge requires admin password |
 
 ---
 
@@ -280,8 +291,9 @@ curl -H "Authorization: Bearer <ADMIN_PASSWORD>" https://your-worker.workers.dev
 - [ ] Vercel env vars all set (`DATABASE_URL`, `UPLOADTHING_TOKEN`, `NEXT_PUBLIC_WEDDING_SLUG`, `NEXT_PUBLIC_WORKER_BASE_URL`) and redeployed
 - [ ] `/health` endpoint returns `{"ok":true,"db":true}`
 - [ ] Photo upload → approve → gallery flow tested end-to-end
-- [ ] Guestbook submission tested
+- [ ] Guestbook submission tested — message appears immediately on `/guestbook`
 - [ ] Admin password works; client password works
+- [ ] Admin `/admin` shows all four panels: Approved, Pending, Trash, Guestbook
 - [ ] All 3 cron triggers visible in Cloudflare dashboard
 - [ ] Custom domain mapped (optional — do in Vercel and Cloudflare DNS)
 

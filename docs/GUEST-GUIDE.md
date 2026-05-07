@@ -42,8 +42,8 @@ your photo the following morning.
 2. Fill in your name and message.
 3. Hit **Sign the Guestbook**.
 
-Messages are reviewed before they appear publicly. Approved messages are visible
-to all site visitors.
+Messages go live immediately — no waiting for approval. If something is off, the
+couple's team can hide it from the admin dashboard.
 
 ---
 

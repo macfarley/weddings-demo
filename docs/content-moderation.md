@@ -9,12 +9,22 @@ This document outlines the moderation workflow for guest-uploaded photos on the 
 - Maintain a production-minded workflow suitable for portfolio review.
 
 ## 2) Upload flow overview
+
+### Photos
 1. Guest uploads photo on `/sendyourphotos`.
-2. File is stored in Supabase Storage (`uploads/` path).
-3. Metadata is inserted into `photos` with `status='pending'` and `is_visible=false`.
-4. Admin reviews pending items in `/admin`.
-5. Approved photos move to `approved/` and become visible in public gallery reads.
-6. Rejected photos are removed/hidden and not shown publicly.
+2. File stored via UploadThing; metadata inserted into `photos` with `status='pending'`, `is_visible=false`.
+3. Cloudflare Worker cron (`*/2 * * * *`) runs HuggingFace NSFW classifier:
+   - Score ≥ 0.95 → `status='rejected'`, `is_visible=false` (auto-trash, visible in admin Trash panel)
+   - Score < 0.95 → `status='approved'`, `is_visible=true` (auto-approved, visible in gallery immediately)
+   - Classifier unavailable → stays `pending` for manual admin review
+4. Admin can manually approve pending photos or trash approved ones from `/admin`.
+
+### Guestbook entries
+1. Guest submits message on `/guestbook`.
+2. Text passes server-side XSS/injection filter (script tags, `javascript:`, event-handler patterns).
+3. Entry inserted with `is_visible=true` — **appears immediately** in the public guestbook.
+4. Admin can hide any entry from `/admin` (✕ → confirm → `is_visible=false`).
+5. Permanent deletion requires full admin password.
 
 ## 3) Current route model
 ### Public reads (no admin auth)
@@ -31,10 +41,17 @@ This document outlines the moderation workflow for guest-uploaded photos on the 
 - `GET /admin/stats`
 
 ## 4) Admin workflow
-- Review pending photos and guestbook entries.
-- Approve/reject entries individually.
-- Use stats to track moderation backlog.
-- Use auth modal fallback when protected requests return `401/403`.
+
+The `/admin` dashboard has four panels:
+
+| Panel | Contents | Actions |
+|-------|----------|---------|
+| ✓ Gallery — Approved | All publicly visible photos | ✕ trash (confirm required) |
+| ⏳ Pending | Photos awaiting classification | ✓ approve, ✕ trash |
+| 🗑 Trash | Rejected / auto-flagged photos | ✕ purge (admin only, confirm required) |
+| 💬 All Guestbook Entries | Every message, visible or hidden | ✕ hide (confirm); purge hidden entries (admin only) |
+
+All destructive actions use a red ✕ → **"Are you sure?"** inline confirm before executing. Nothing can be accidentally deleted.
 
 ## 5) Data and labeling
 Photo metadata supports:
