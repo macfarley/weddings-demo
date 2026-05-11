@@ -1,3 +1,9 @@
+// PrivacyNoticeBanner — one-time data use notice shown on first visit.
+//
+// Displayed once per browser session using sessionStorage. Explains that
+// uploaded photos and guestbook messages are stored and may be viewed by
+// the couple. Dismissed on click or after interacting with the site.
+// GDPR-adjacent best practice for a site that collects user-submitted content.
 import { useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'privacy-notice-dismissed';

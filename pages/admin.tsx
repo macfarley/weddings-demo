@@ -1,3 +1,19 @@
+// pages/admin.tsx — Photo and guestbook moderation dashboard.
+//
+// Auth model: password is stored in sessionStorage after first successful
+// verification against the Worker's /admin/stats endpoint. The token is sent
+// as a Bearer header on every request. On 3 failed attempts the session is
+// invalidated and the user is redirected to /?lost=true.
+//
+// Two auth tiers:
+//   Admin   — full access including purge/hard-delete (ADMIN_PASSWORD)
+//   Client  — approve/trash only; purge buttons hidden (CLIENT_PASSWORD)
+// The Worker's GET /auth/role endpoint identifies which tier is active.
+//
+// Data is loaded via GET /guestbook (all entries, auth-gated) and the
+// /photos/* family. All five parallel requests in refreshData() must succeed
+// or the UI shows an error — a 404 on any one route means the deployed Worker
+// is older than the source. Run `cd worker && npx wrangler deploy` to sync.
 import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 
@@ -160,7 +176,7 @@ export default function AdminPage() {
         fetchJson<UploadItem[]>('/photos/pending'),
         fetchJson<{ data: UploadItem[]; total: number }>('/photos/approved?per_page=100').then((r) => r.data ?? []),
         fetchJson<UploadItem[]>('/photos/trash'),
-        fetchJson<GuestbookEntry[]>('/guestbook/all'),
+        fetchJson<GuestbookEntry[]>('/guestbook'),
         fetchJson<AdminStats>('/admin/stats'),
       ]);
 

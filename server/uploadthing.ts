@@ -1,3 +1,16 @@
+// UploadThing server-side file router.
+//
+// This runs on Vercel serverless (not the Cloudflare Worker).
+// Guests upload photos directly from their browser to the UploadThing CDN.
+// On successful upload, this handler inserts photo metadata into Neon (DB).
+//
+// Flow: Guest browser → UploadThing SDK → CDN → onUploadComplete → Neon INSERT
+//
+// Photos start in status='pending' and is_visible=false. They only appear in
+// the public gallery after an admin approves them via the Worker /photos/approve route.
+//
+// The Cloudflare Worker auto-moderates pending photos every 2 minutes using
+// the HuggingFace NSFW classifier (see worker/src/index.ts autoModeratePending).
 import { createUploadthing, type FileRouter } from 'uploadthing/next-legacy';
 import { neon } from '@neondatabase/serverless';
 
@@ -6,6 +19,7 @@ const f = createUploadthing();
 type PhotoInput = { name: string; familyName: string; shortCaption: string; longCaption: string };
 
 // Inline schema that satisfies UploadThing's ParserZodEsque<TInput, TParsedInput> shape.
+// We don't use Zod to avoid adding a dependency just for this one parse.
 function parsePhotoInput(data: unknown): PhotoInput {
   const d = (data ?? {}) as Record<string, unknown>;
   return {

@@ -1,3 +1,8 @@
+// SiteFooter — site-wide footer shown on all pages except /under-construction.
+//
+// Contains Mac McCoy's creator attribution, SitesbyMac.dev link, and contact email.
+// Mounted globally in _app.tsx. Excluded from /under-construction and /qrcodeflyer
+// via the HIDE_FOOTER_PATHS check in _app.tsx.
 import { usePalette } from '../context/PaletteContext';
 
 export default function SiteFooter() {

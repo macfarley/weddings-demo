@@ -1,3 +1,15 @@
+// _app.tsx — Next.js Pages Router app shell.
+//
+// All global CSS must be imported here — Next.js forbids global CSS imports
+// in page or component files. Page-specific CSS is still logically organized
+// in styles/pages/ and styles/components/ but imported here at the app level.
+//
+// Providers mounted here (outermost first):
+//   ChakraProvider — Chakra UI system (modals only; most UI uses plain CSS)
+//   PaletteProvider — wedding color theme context
+//   NavBar           — shown on all pages except /qrcodeflyer and /under-construction
+//   PrivacyNoticeBanner — cookie/data notice banner (GDPR-adjacent best practice)
+//   SiteFooter       — shown on all pages except /under-construction
 import { ChakraProvider } from '@chakra-ui/react';
 import { useRouter } from 'next/router';
 import { system } from '../theme';

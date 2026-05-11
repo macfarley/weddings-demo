@@ -1,6 +1,112 @@
 # Dev Log
 
-## 2026-04-29
+---
+
+## 2026-05-10
+
+### Summary
+Post-ceremony housekeeping: congratulations banner, guestbook and admin debugging,
+comment audit, documentation update, and lessons-learned capture.
+
+### Changes This Session
+
+**Congratulations banner — `pages/index.tsx`**
+- Added a soft post-ceremony banner above the hero section, visible until June 9, 2026.
+- `showCongratsBanner = new Date() < new Date("2026-06-09T00:00:00")` — evaluated at
+  module load, no hydration mismatch.
+- Styled with inline styles (consistent with rest of page), left-border accent from
+  active palette, no Tailwind classes (not in this project).
+
+**Guestbook fix — slug mismatch (`pages/guestbook.tsx`, `.env.local`)**
+- Entries were not appearing on `/guestbook` despite existing in the DB.
+- Root cause: `.env.local` had `NEXT_PUBLIC_WEDDING_SLUG=may-collins-2026` but entries
+  were inserted under `john-crystal-2026` (the slug used at upload time).
+- Fixed: corrected slug in `.env.local`. Vercel env vars should be checked to confirm
+  production uses the same slug.
+- Lesson: the `wedding_slug` field is set at insert time and is immutable. Changing the
+  slug env var does not rename existing rows — it just stops them from being found.
+
+**Admin dashboard fix — Worker version drift (`pages/admin.tsx`)**
+- Admin dashboard showed 0 for all panels after login. The UI received no error —
+  just silence.
+- Root cause: `refreshData()` uses `Promise.all` for 5 parallel requests. One of them
+  (`GET /guestbook/all`) returned 404 because the deployed Worker was older than the
+  source code (the `/guestbook/all` route was added locally but never deployed).
+  A single 404 in `Promise.all` causes the whole batch to reject.
+- Fix: changed the admin page to use `GET /guestbook` (the legacy alias that exists
+  on the deployed Worker) instead of `GET /guestbook/all`.
+- Permanent fix: `cd worker && npx wrangler deploy` to sync the deployed Worker.
+- Lesson: Worker version drift is a silent killer. Any `Promise.all` that includes
+  an undeployed route fails the whole batch with no per-route error surfaced in UI.
+  Add a per-route error boundary or check DevTools Network for the 404.
+
+**Comment audit — all major source files**
+- Added file-level header comments to:
+  `pages/index.tsx`, `pages/gallery.tsx`, `pages/guestbook.tsx`, `pages/admin.tsx`,
+  `pages/api/guestbook.ts`, `pages/_app.tsx`, `components/NavBar.tsx`,
+  `components/Gallery.tsx`, `components/FeatureToast.tsx`, `components/SiteFooter.tsx`,
+  `components/PrivacyNoticeBanner.tsx`, `context/PaletteContext.tsx`,
+  `lib/palettes.ts`, `lib/uploadthing-client.ts`, `server/uploadthing.ts`.
+- Comments explain: why decisions were made, what's disabled vs what's active,
+  how data flows, and where to look when something breaks.
+
+**Documentation update — `docs/DEVELOPER.md`**
+- Added new runbook entries:
+  - Guestbook shows 0 entries (slug mismatch diagnosis)
+  - Admin dashboard shows all panels as 0 after login (Promise.all / Worker drift)
+  - How to run worker locally against production Neon
+- Added Section 14: Post-Ceremony Transition — what changed, sunsetting checklist.
+- Corrected the "run worker locally against Supabase" task title (it's Neon now).
+
+---
+
+## Lessons Learned (persistent)
+
+These apply to future deployments of this platform for new couples.
+
+### 1. The wedding slug is immutable at the row level
+The `wedding_slug` column is set on INSERT and is never updated. Changing
+`NEXT_PUBLIC_WEDDING_SLUG` after entries have been inserted means existing rows
+stop appearing. Always verify the slug before letting guests start submitting.
+**Check:** `GET /guestbook/approved?wedding_slug=<slug>` with a real browser UA.
+
+### 2. Deployed Worker version must match source
+The Worker has a rich route set (10+ endpoints). Next.js and the Worker are deployed
+independently. If the Worker is not redeployed after adding a new route, `Promise.all`
+in the admin page will silently fail the entire data load. Always run
+`npx wrangler deploy` after any route additions.
+**Check:** `GET /health` should return `{"ok":true,"db":true}`.
+
+### 3. `.env.local` overrides `.env` — always check both
+`.env` and `.env.local` can hold the same keys. `.env.local` wins. A stale or
+incorrect value in `.env.local` (e.g., wrong wedding slug, wrong worker URL) can
+make the local site behave differently from production in ways that are hard to spot.
+**Convention:** Keep `.env` as the truth-of-record for production values,
+use `.env.local` only for dev overrides. Document both.
+
+### 4. `Promise.all` failures need per-route error surfacing
+Any request failing in a `Promise.all` batch prevents all other results from rendering.
+For admin dashboards, prefer `Promise.allSettled` or run each request independently
+so a single 404 doesn't blank the entire UI. (Not fixed yet — tracked for future iteration.)
+
+### 5. Bot/geo blocks affect local curl tests
+The Worker blocks non-US traffic, cloud ASNs, and certain user-agents including `curl/`.
+Local testing with `curl` or Python requests will always get 403 from the live Worker.
+Use `node` (built-in fetch with browser UA) or a real browser for live endpoint testing.
+
+### 6. CSS import location is a Next.js hard constraint
+All global CSS (including per-page stylesheets) must be imported in `pages/_app.tsx`.
+Importing global CSS in page or component files causes intermittent build failures that
+can be difficult to trace. The `styles/pages/` and `styles/components/` folder structure
+helps keep it organized without changing the import rule.
+
+### 7. The racetrack guestbook metaphor worked
+The bride/groom lane split with car-shaped message cards was a creative bet. Guests
+mentioned it specifically. The motorsports theme — Petty Blue, stoplight nav, racetrack
+guestbook, dirt-track palettes — made the site feel like *their* site, not a generic
+wedding template. Personal creative choices compound.
+
+
 
 ### Summary
 Full platform migration from Supabase to Neon (PostgreSQL) + UploadThing (file storage). Motivated by a data-access incident with Supabase's free tier. All functionality preserved — guestbook, photo gallery, admin moderation, love reactions. Zero downtime migration completed in one session.

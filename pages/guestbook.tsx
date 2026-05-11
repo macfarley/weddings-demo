@@ -1,3 +1,15 @@
+// pages/guestbook.tsx — Public guestbook page.
+//
+// Layout: racetrack road with two lanes (Bride's side / Groom's side).
+// Car-shaped message cards populate each lane. The visual metaphor was chosen
+// to match John & Crystal's NASCAR/motorsports theme.
+//
+// Entries are loaded from the Worker's GET /guestbook/approved?wedding_slug=...
+// endpoint (public, no auth). If the worker URL is missing, MOCK_ENTRIES are
+// shown so the page is never completely empty during dev/demo.
+//
+// Submissions go via POST /api/guestbook (Next.js API route, server-side),
+// not directly to the Worker. This keeps DATABASE_URL server-only.
 import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';

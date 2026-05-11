@@ -1,5 +1,16 @@
+// pages/index.tsx — Main landing page.
+//
+// showCongratsBanner: Evaluated once at module load (server-render + client hydration).
+// Displays a congratulations note from Mac until June 9, 2026, one month post-ceremony.
+// The banner is soft — warm, not promotional — positioned above the hero section.
+//
+// Navigation pills use a stoplight color system (red/yellow/green) that mirrors
+// the NavBar links and communicates priority/status at a glance.
 import Link from 'next/link';
 import { usePalette } from '../context/PaletteContext';
+
+// Show the post-ceremony congratulations banner until one month after the wedding.
+const showCongratsBanner = new Date() < new Date("2026-06-09T00:00:00");
 
 export default function HomePage() {
 	const { palette } = usePalette();
@@ -7,6 +18,26 @@ export default function HomePage() {
 	return (
 		<div className="page-container">
 			<main className="main-content">
+				{showCongratsBanner && (
+					<div style={{
+						width: '100%',
+						backgroundColor: '#f7f7f7',
+						textAlign: 'center',
+						padding: '1rem 1.5rem',
+						borderRadius: '0.375rem',
+						boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+						marginBottom: '1.5rem',
+						borderLeft: `4px solid ${palette?.primary ?? '#b7a99a'}`,
+					}}>
+						<p style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>
+							Message from Mac McCoy, your Romance Websmith
+						</p>
+						<p style={{ fontSize: '0.9rem', color: '#6b7280', marginTop: '0.35rem', marginBottom: 0 }}>
+							Congratulations to the newlyweds — and best wishes as you begin this next chapter together.
+							Thank you for letting me help craft a small digital piece of your story.
+						</p>
+					</div>
+				)}
 				<section
 					className="section-full home-section"
 					style={{

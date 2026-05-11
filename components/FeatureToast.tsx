@@ -1,3 +1,8 @@
+// FeatureToast — lightweight auto-dismissing notification banner.
+//
+// Used site-wide for transient feedback: upload success, guestbook submission,
+// and graceful degradation when a worker endpoint is unavailable.
+// Auto-closes after 3.2 seconds. Accessible via role="status" + aria-live="polite".
 import { useEffect } from 'react';
 
 interface FeatureToastProps {
@@ -7,6 +12,7 @@ interface FeatureToastProps {
 }
 
 export default function FeatureToast({ isOpen, message, onClose }: FeatureToastProps) {
+  // Auto-dismiss after 3.2s. Timer resets if the message changes while open.
   useEffect(() => {
     if (!isOpen) {
       return;

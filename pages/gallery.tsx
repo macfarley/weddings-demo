@@ -1,3 +1,13 @@
+// pages/gallery.tsx — Public photo gallery.
+//
+// Photos are fetched from the Cloudflare Worker's GET /photos/approved endpoint,
+// which filters to status='approved' AND is_visible=true for the active wedding slug.
+// If the worker URL is not configured, the Gallery component renders emoji placeholders.
+//
+// Sort modes: 'newest' (default) and 'popular' (by love_count DESC).
+// Love reactions are sent via POST /photos/react and deduplicated server-side
+// using a SHA-256 hash of (photo_id + IP address). localStorage tracks already-
+// loved photo IDs on the client to persist the heart state across page reloads.
 import { useEffect, useMemo, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import Gallery, { type Photo } from '../components/Gallery';

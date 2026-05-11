@@ -1,3 +1,11 @@
+// NavBar — site-wide top navigation bar.
+//
+// Uses the stoplight color system: red (program/about), yellow (gallery),
+// green (guestbook/sendyourphotos). Colors communicate priority and match
+// the homepage explore pills — a consistent motorsports visual metaphor.
+//
+// Collapses to a hamburger menu at 1100px viewport width.
+// Active route is highlighted using router.pathname comparison.
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useState } from 'react';

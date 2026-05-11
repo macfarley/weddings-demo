@@ -23,6 +23,7 @@ out/
 
 # Internal client docs and historical archive — not for version control
 docs/archive/
+docs/medium-case-study-draft.md
 
 # Editor
 .vscode/

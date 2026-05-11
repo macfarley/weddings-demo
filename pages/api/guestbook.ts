@@ -1,3 +1,14 @@
+// POST /api/guestbook — server-side guestbook submission handler.
+//
+// Runs on Vercel serverless (Node.js runtime). Guests never write directly to
+// the database — all input is validated and sanitized here before the Neon insert.
+//
+// New entries are inserted with is_visible=true (auto-approved for this deployment).
+// Previously they defaulted to false and required admin approval; that was relaxed
+// after the wedding since moderation demand dropped post-ceremony.
+//
+// The Cloudflare Worker's GET /guestbook route reads only is_visible=true entries
+// for the public guestbook page.
 import type { NextApiRequest, NextApiResponse } from 'next';
 import { neon } from '@neondatabase/serverless';
 
@@ -11,6 +22,7 @@ function getWeddingSlug(): string {
 	return process.env.NEXT_PUBLIC_WEDDING_SLUG?.trim() || 'default';
 }
 
+// Basic XSS / injection patterns to reject at the API boundary.
 const SUSPICIOUS = [/<script/i, /javascript:/i, /on\w+\s*=/i, /<iframe/i, /<embed/i];
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

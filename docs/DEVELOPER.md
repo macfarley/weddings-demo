@@ -414,3 +414,59 @@ ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
 1. Check cron schedule in `worker/wrangler.jsonc` — `0 10 * * 0` = Sunday 10:00 UTC.
 2. Check `SLACK_WEBHOOK_URL` Worker secret is set and the webhook is active.
 3. `GET /report` (with admin token) to see the data the report would send.
+
+### Guestbook shows 0 entries even though they exist
+
+1. **Check the wedding slug.** The most common cause is a slug mismatch between
+   what's in the DB and what `NEXT_PUBLIC_WEDDING_SLUG` is set to.
+   Run: `GET /guestbook/approved?wedding_slug=<slug>` with a browser User-Agent.
+   Try different slug values until you find which one returns data.
+2. Correct the slug in `.env.local` (local) and Vercel env vars (production).
+3. The slug used when entries were submitted is the slug they're stored under.
+   There's no rename \u2014 if you change the slug, old entries won't appear under the new one.
+
+### Admin dashboard shows all panels as 0 after login
+
+The most likely cause is a Worker version mismatch \u2014 the deployed Worker is older than
+the source code, and one of the five `Promise.all` requests in `refreshData()` is hitting
+a route that doesn't exist on the deployed Worker (returns 404, which causes the whole
+`Promise.all` to reject and nothing renders).
+
+1. Check which route is returning 404: open DevTools → Network after login and look for
+   a failed request among `/photos/pending`, `/photos/approved`, `/photos/trash`,
+   `/guestbook`, `/admin/stats`.
+2. Redeploy the Worker: `cd worker && npx wrangler deploy`.
+3. Verify with `GET /health` \u2014 should return `{"ok":true,"db":true}`.
+
+### Run the worker locally against production Neon
+
+```bash
+cd worker
+npx wrangler dev
+```
+The Worker will use secrets from `.dev.vars` if present (copy from `.env.local`).
+Set `NEXT_PUBLIC_WORKER_BASE_URL=http://localhost:8787` in the Next.js `.env.local`.
+
+---
+
+## 14. Post-Ceremony Transition (May 2026)
+
+The ceremony was held May 9, 2026. The site will remain live for ~11 months
+before the domain expires and the static version is migrated to `sitesbymac.dev/weddings/JohnandCrystalMay`.
+
+### What changed post-ceremony
+
+- **Congratulations banner** added to the landing page (`pages/index.tsx`). Auto-hides
+  after June 9, 2026 (`showCongratsBanner = new Date() < new Date("2026-06-09T00:00:00")`).
+- **Guestbook submissions** remain open \u2014 family and friends continue signing post-wedding.
+- **Photo uploads** remain open \u2014 guests may still share photos taken at the venue.
+- **Admin moderation** still works \u2014 use it to curate the gallery and guestbook over time.
+
+### Sunsetting checklist (when ready)
+
+- [ ] Export DB: `pg_dump` from Neon → save as static JSON or SQL backup
+- [ ] Download all photos from UploadThing CDN
+- [ ] Build static snapshot of site HTML/CSS
+- [ ] Deploy static version to `sitesbymac.dev/weddings/JohnandCrystalMay`
+- [ ] Let domain registration expire (do not auto-renew)
+- [ ] Archive this repo with a final README note

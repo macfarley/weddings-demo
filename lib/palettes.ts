@@ -1,6 +1,17 @@
-// Color Palettes for the wedding site
-// Each palette is selectable and affects the entire page
-
+// Color palettes for the wedding site theme system.
+//
+// Each palette is a complete color set: primary accent, secondary, highlight,
+// background, and text. All inline styles across pages and components reference
+// values from the active palette via usePalette().
+//
+// Palette concept: John & Crystal's shared passion is NASCAR / motorsports.
+// All four palettes are themed around that culture — Petty Blue, victory lanes,
+// dirt-track evenings, Appalachian backroads. This was a deliberate creative
+// choice that made the site feel personal rather than generic wedding-template.
+//
+// The live site uses 'petty-shop'. Other palettes are available for demos.
+// To add a new palette: add a key here, add its Palette object to PALETTES, and
+// add it to the PaletteName union type.
 export type PaletteName = 'dirt-track-sunset' | 'petty-shop' | 'victory-lane' | 'moonshine-runner';
 
 export interface Palette {

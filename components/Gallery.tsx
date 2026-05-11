@@ -1,4 +1,15 @@
-// Gallery component - 4x4 grid of photo thumbnails with expandable viewer
+// Gallery — photo grid with expandable fullscreen viewer and love reactions.
+//
+// Renders a responsive grid of photo cards. Each card shows a thumbnail;
+// clicking opens the ImageViewer modal for fullscreen view + download.
+//
+// Love reactions: each photo has a heart button. Clicks call the onLove callback
+// which hits Worker POST /photos/react. Already-loved IDs are tracked in
+// localStorage so the heart state persists across page reloads without auth.
+//
+// When no real photos are available (worker unconfigured / empty gallery),
+// emoji placeholder tiles are rendered. These have role="presentation" and
+// are not interactive — they're purely decorative fill.
 import { useCallback, useState } from 'react';
 import ImageViewer from './ImageViewer';
 
