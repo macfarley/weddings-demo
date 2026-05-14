@@ -192,19 +192,28 @@ Each page also sets its own `<title>` and `<meta name="description">` via Next.j
    npx wrangler secret put ADMIN_PASSWORD
    npx wrangler secret put CLIENT_PASSWORD
    npx wrangler secret put ADMIN_ORIGIN       # Your Vercel domain, e.g. https://wedding-doe-smith.vercel.app
+   npx wrangler secret put WEDDING_SLUG       # Your wedding slug, e.g. doe-smith-2026
    npx wrangler secret put HF_TOKEN           # Optional: HuggingFace token for NSFW auto-moderation
    ```
 
    > `ADMIN_PASSWORD` → full destructive access (purge, hard-delete)  
-   > `CLIENT_PASSWORD` → approve/trash access (give to the couple or photographer)
+   > `CLIENT_PASSWORD` → approve/trash access (give to the couple or photographer)  
+   > `WEDDING_SLUG` → used by the 2-minute cron to refresh the KV read cache
 
-4. **Verify the Worker is live:**
+4. **Create the KV cache namespace:**
+   ```bash
+   npx wrangler kv namespace create CACHE
+   # Wrangler will offer to update wrangler.jsonc automatically — say yes.
+   # If it adds a duplicate entry, remove the placeholder manually.
+   ```
+
+5. **Verify the Worker is live:**
    ```bash
    curl https://wedding-doe-smith-worker.YOUR_ACCOUNT.workers.dev/health
    # Expected: {"ok":true,"db":true}
    ```
 
-5. **Note the Worker URL** — you'll set this in Vercel next.
+6. **Note the Worker URL** — you'll set this in Vercel next.
 
 ---
 

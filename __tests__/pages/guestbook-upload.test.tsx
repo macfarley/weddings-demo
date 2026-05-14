@@ -4,6 +4,19 @@ import GuestbookPage from '../../pages/guestbook';
 const fetchMock = jest.fn();
 const startUploadMock = jest.fn();
 
+// Bypass the DisplayNameGate and localStorage cache in tests.
+// Use 'Guest' so the gate is skipped but the form is NOT pre-filled
+// (the guestbook page skips pre-fill when stored name is 'Guest').
+jest.mock('../../lib/contentCache', () => ({
+  getDisplayName: jest.fn(() => 'Guest'),
+  setDisplayName: jest.fn(),
+  getCached: jest.fn(() => null),
+  setCached: jest.fn(),
+  clearCached: jest.fn(),
+  shouldRefresh: jest.fn(() => Promise.resolve(true)),
+  POLL_INTERVAL_MS: 999_999,
+}));
+
 jest.mock('../../context/PaletteContext', () => ({
   usePalette: () => ({
     palette: {

@@ -3,6 +3,17 @@ import UnderConstruction from '../../pages/under-construction';
 import About from '../../pages/about';
 import GalleryPage from '../../pages/gallery';
 
+// Bypass the DisplayNameGate and localStorage cache in tests.
+jest.mock('../../lib/contentCache', () => ({
+  getDisplayName: jest.fn(() => 'Test User'),
+  setDisplayName: jest.fn(),
+  getCached: jest.fn(() => null),
+  setCached: jest.fn(),
+  clearCached: jest.fn(),
+  shouldRefresh: jest.fn(() => Promise.resolve(true)),
+  POLL_INTERVAL_MS: 999_999,
+}));
+
 jest.mock('../../context/PaletteContext', () => ({
   usePalette: () => ({
     palette: {

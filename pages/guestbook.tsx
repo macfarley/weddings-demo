@@ -10,10 +10,23 @@
 //
 // Submissions go via POST /api/guestbook (Next.js API route, server-side),
 // not directly to the Worker. This keeps DATABASE_URL server-only.
-import { useEffect, useMemo, useState } from 'react';
+//
+// Post-event caching: same localStorage + 2-minute poll strategy as gallery.tsx.
+// Display name from localStorage is pre-filled into the form fields.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import FeatureToast from '../components/FeatureToast';
+import DisplayNameGate from '../components/DisplayNameGate';
 import { getWeddingSlug } from '../lib/supabase';
+import {
+  getCached,
+  setCached,
+  shouldRefresh,
+  getDisplayName,
+  POLL_INTERVAL_MS,
+} from '../lib/contentCache';
+
+const GUESTBOOK_CACHE_KEY = 'guestbook:entries';
 
 interface GuestbookEntry {
   id: string;
@@ -153,47 +166,101 @@ export default function GuestbookPublic() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showToast, setShowToast] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  // null = still checking localStorage, '' = not set (show gate), string = ready
+  const [displayName, setDisplayNameState] = useState<string | null>(null);
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const workerBaseUrl = useMemo(
     () => cleanBaseUrl(process.env.NEXT_PUBLIC_WORKER_BASE_URL || ''),
     [],
   );
 
+  // Check for stored display name on first render.
   useEffect(() => {
+    const stored = getDisplayName();
+    setDisplayNameState(stored ?? '');
+    // Pre-fill the form name field from the stored display name.
+    if (stored && stored !== 'Guest') {
+      const parts = stored.split(' ');
+      if (parts.length >= 2) {
+        setFamilyName(parts.slice(1).join(' '));
+        setName(parts[0]);
+      } else {
+        setName(stored);
+      }
+    }
+  }, []);
+
+  const fetchEntries = useCallback(async (force = false) => {
     if (!workerBaseUrl) {
       setEntries(MOCK_ENTRIES);
       return;
     }
 
-    let active = true;
-    const loadEntries = async () => {
-      try {
-        const weddingSlug = getWeddingSlug();
-        const response = await fetch(`${workerBaseUrl}/guestbook/approved?wedding_slug=${encodeURIComponent(weddingSlug)}`);
-        const payload = (await response.json()) as WorkerResponse<WorkerGuestbookEntry[]>;
-        if (!response.ok || payload.error) {
-          throw new Error(payload.error || `Failed to load guestbook (${response.status})`);
-        }
+    const cacheEntry = getCached<WorkerGuestbookEntry[]>(GUESTBOOK_CACHE_KEY);
 
-        if (!active) {
-          return;
-        }
+    // Serve from localStorage immediately.
+    if (cacheEntry?.data && !force) {
+      setEntries(cacheEntry.data.map(toGuestbookEntry));
+    }
 
-        const mapped = (payload.data || []).map(toGuestbookEntry);
-        setEntries(mapped);
-      } catch (error) {
-        console.error('Guestbook load failed:', error);
-        if (active) {
-          setEntries([]);
-        }
+    const needsRefresh = force || await shouldRefresh(workerBaseUrl, cacheEntry);
+    if (!needsRefresh) return;
+
+    try {
+      const weddingSlug = getWeddingSlug();
+      const response = await fetch(`${workerBaseUrl}/guestbook/approved?wedding_slug=${encodeURIComponent(weddingSlug)}`);
+      const payload = (await response.json()) as WorkerResponse<WorkerGuestbookEntry[]>;
+      if (!response.ok || payload.error) {
+        throw new Error(payload.error || `Failed to load guestbook (${response.status})`);
       }
-    };
 
-    loadEntries();
-    return () => {
-      active = false;
-    };
+      const fresh = payload.data || [];
+      setEntries(fresh.map(toGuestbookEntry));
+      setCached(GUESTBOOK_CACHE_KEY, fresh, null);
+    } catch (error) {
+      console.error('Guestbook load failed:', error);
+      if (!entries.length) setEntries([]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workerBaseUrl]);
+
+  // Initial load (only after display name is resolved).
+  useEffect(() => {
+    if (displayName === null) return;
+    fetchEntries(true);
+  }, [displayName, fetchEntries]);
+
+  // Active-tab polling.
+  useEffect(() => {
+    if (displayName === null || !workerBaseUrl) return;
+
+    function startPoll() {
+      pollTimerRef.current = setInterval(() => {
+        if (!document.hidden) fetchEntries();
+      }, POLL_INTERVAL_MS);
+    }
+
+    function handleVisibility() {
+      if (!document.hidden) fetchEntries();
+    }
+
+    startPoll();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [displayName, workerBaseUrl, fetchEntries]);
+
+  // Show gate while checking localStorage.
+  if (displayName === null) return null;
+
+  // Show display name gate if not yet set.
+  if (displayName === '') {
+    return <DisplayNameGate onReady={(dname) => setDisplayNameState(dname)} />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

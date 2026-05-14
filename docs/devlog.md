@@ -2,6 +2,80 @@
 
 ---
 
+## 2026-05-14
+
+### Summary
+Post-event mode: Cloudflare KV cache layer, display name gate, and localStorage
+polling. Zero-compute read path so Neon stays cold between admin writes.
+
+### Changes This Session
+
+**Cloudflare KV cache — `worker/src/index.ts`, `worker/wrangler.jsonc`**
+- Added `CACHE` KV namespace binding (`id: 416c5c2ebe074a36a708c370b8bdf5c0`).
+- KV keys: `photos:approved:<slug>`, `guestbook:approved:<slug>`, `cache:last_change`.
+- `GET /photos/approved` and `GET /guestbook/approved` now read from KV first
+  (`X-Cache: HIT`). On miss they query Neon, write to KV, and return (self-priming).
+- Every admin write action now calls `bumpLastChange(env)` to update `cache:last_change`.
+- `GET /cache/status` added — returns `{ last_change: string | null }`, no auth, pure KV read.
+- Scheduled cron `*/2 * * * *` now runs `autoModeratePending + refreshAllCaches`.
+  Removed the old daily keepalive `SELECT 1` ping (no longer needed with 2-min cron).
+
+**Client-side cache + polling — `lib/contentCache.ts`** (new file)
+- `getCached<T>(key)` / `setCached<T>(key, data, lastChange)` — localStorage with
+  typed `CacheEntry` envelope (fetchedAt, lastChange, data).
+- `shouldRefresh(workerBaseUrl, entry)` — polls `/cache/status`, returns true only if
+  `last_change` > `fetchedAt`. 2-minute poll interval (`POLL_INTERVAL_MS`).
+- `getDisplayName()` / `setDisplayName(name)` — `wedding_display_name` key, 30-day TTL.
+
+**DisplayNameGate — `components/DisplayNameGate.tsx`** (new file)
+- First-visit modal that collects a display name (e.g. "The Smith Family").
+- Validates: non-empty, ≤ 60 chars. "Continue as Guest" sets name to `'Guest'`.
+- Stored via `setDisplayName()` from `lib/contentCache`; persists for 30 days.
+
+**Gallery + Guestbook pages — `pages/gallery.tsx`, `pages/guestbook.tsx`**
+- Both pages now: check localStorage for display name on mount, show `DisplayNameGate`
+  if not set, load from localStorage cache before fetching from Worker.
+- Active-tab polling: `setInterval(fetchPhotos, POLL_INTERVAL_MS)` + `visibilitychange`
+  listener re-triggers fetch when tab becomes active.
+- Guestbook pre-fills name/family fields from the stored display name on mount.
+
+**Cache priming script — `scripts/prime-kv-cache.mjs`** (new file)
+- One-time script to seed KV from Neon data after a fresh deploy.
+- Set `PRIME_WORKER_URL` and `PRIME_WEDDING_SLUG` (or reads from `.env.local`).
+
+**Unit tests — `__tests__/pages/`**
+- Added `jest.mock('../../lib/contentCache')` to all four affected test suites so
+  `getDisplayName` returns `'Guest'` (bypasses the gate without pre-filling the form).
+- All 52 unit tests pass. Pre-existing `photo-upload-validation` failure (uploadthing
+  `TextEncoder` env issue) is unchanged.
+
+**Documentation — `docs/DEVELOPER.md`, `docs/devlog.md`**
+- Added section 10 "Post-Event Mode & KV Cache" with architecture diagram, KV key
+  schema, priming instructions, and new debugging runbook entries.
+- Updated cron table and deployment secret list.
+
+### Deployment Steps Completed
+```
+cd worker && npx wrangler kv namespace create CACHE   # id: 416c5c2ebe074a36a708c370b8bdf5c0
+cd worker && npx wrangler deploy                      # Version 65896a75
+cd worker && npx wrangler secret put WEDDING_SLUG     # john-crystal-2026
+# Cache primed via direct curl to self-priming endpoints
+# /cache/status verified: {"last_change":"2026-05-14T22:34:52.423Z"}
+```
+
+### Lessons Learned
+- JSDOM in Jest has no localStorage, so `getDisplayName()` returns null and the gate
+  blocks all page rendering. The fix: mock `lib/contentCache` at the test-file level
+  with `getDisplayName: jest.fn(() => 'Guest')`.
+- Guestbook tests need `'Guest'` specifically — the page skips pre-filling form fields
+  when the stored name is `'Guest'`, so the "no name" validation test can fire correctly.
+- Wrangler's interactive KV namespace create adds a duplicate entry when the config
+  already has a placeholder — always clean up the placeholder manually after.
+- `dotenv` is not installed in the root `package.json`; the priming script's dotenv
+  import fails. Either install it or pass env vars inline on the CLI.
+
+---
+
 ## 2026-05-10
 
 ### Summary

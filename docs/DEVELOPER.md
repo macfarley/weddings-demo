@@ -17,10 +17,11 @@ site. It is the first place to look when picking up or handing off this project.
 7. [Cloudflare Worker](#7-cloudflare-worker)
 8. [Access Control & Security](#8-access-control--security)
 9. [Deployment](#9-deployment)
-10. [Test Suite](#10-test-suite)
-11. [Common Tasks](#11-common-tasks)
-12. [Dead Code & Stubs](#12-dead-code--stubs)
-13. [Debugging Runbook](#13-debugging-runbook)
+10. [Post-Event Mode & KV Cache](#10-post-event-mode--kv-cache)
+11. [Test Suite](#11-test-suite)
+12. [Common Tasks](#12-common-tasks)
+13. [Dead Code & Stubs](#13-dead-code--stubs)
+14. [Debugging Runbook](#14-debugging-runbook)
 
 ---
 
@@ -209,9 +210,8 @@ All source lives in `worker/src/index.ts`. TypeScript, compiled via Wrangler.
 
 | Cron | Purpose |
 |------|---------|
-| `0 9 * * *` | Daily keepalive ping (prevents Worker from going cold) |
-| `*/2 * * * *` | Auto-moderation: run HuggingFace NSFW check on pending uploads |
-| `0 10 * * 0` | Weekly egress report on Sunday at 10:00 UTC |
+| `*/2 * * * *` | Auto-moderation (NSFW check on pending uploads) + KV cache refresh |
+| `0 10 * * SUN` | Weekly egress report on Sunday at 10:00 UTC |
 
 ### Adding a New Endpoint
 
@@ -288,6 +288,7 @@ npx wrangler secret put ADMIN_PASSWORD
 npx wrangler secret put CLIENT_PASSWORD
 npx wrangler secret put SITE_ORIGIN
 npx wrangler secret put ADMIN_ORIGIN
+npx wrangler secret put WEDDING_SLUG          # required for KV cache cron
 npx wrangler secret put HF_TOKEN              # optional
 npx wrangler secret put SLACK_WEBHOOK_URL     # optional
 npx wrangler secret put RESTRICT_TO_MIDWEST   # optional
@@ -295,7 +296,110 @@ npx wrangler secret put RESTRICT_TO_MIDWEST   # optional
 
 ---
 
-## 10. Test Suite
+## 10. Post-Event Mode & KV Cache
+
+After the wedding, the site enters **post-event mode**: all writes stop, but the
+gallery and guestbook remain public for guests to browse. In this mode the
+architecture aggressively caches reads to keep Neon compute near zero.
+
+### How It Works
+
+```
+Browser (gallery / guestbook)
+  │
+  ├─ On first visit: DisplayNameGate modal asks for a display name
+  │   Stores result in localStorage (key: wedding_display_name, 30-day TTL)
+  │
+  ├─ On each page load:
+  │   1. Read from localStorage cache (key: gallery:photos / guestbook:entries)
+  │   2. If cache exists, poll GET /cache/status every 2 minutes
+  │      → compare last_change timestamp to fetchedAt
+  │      → only re-fetch from Worker if data has changed
+  │   3. If cache empty or stale: fetch from Worker → store in localStorage
+  │
+  └─ Worker read path:
+      GET /photos/approved  →  KV cache first (key: photos:approved:<slug>)
+      GET /guestbook/approved  →  KV cache first (key: guestbook:approved:<slug>)
+      If KV miss: query Neon → write to KV → return (self-priming)
+
+Cloudflare Worker (every 2 minutes via cron)
+  └─ refreshAllCaches(): re-query Neon → write KV → bumpLastChange
+     (also called after every admin write action)
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `lib/contentCache.ts` | Client-side localStorage cache + display name management |
+| `components/DisplayNameGate.tsx` | First-visit modal (collects display name) |
+| `scripts/prime-kv-cache.mjs` | One-time seed script after fresh deploy |
+| `worker/src/index.ts` | `GET /cache/status`, KV helpers, write-through `bumpLastChange` |
+
+### New Environment Variables
+
+#### Worker secrets (set via `wrangler secret put`)
+
+| Variable | Purpose |
+|----------|---------|
+| `WEDDING_SLUG` | Active wedding slug — used by the 2-min cron to refresh KV |
+
+#### KV Namespace
+
+| Binding | KV Namespace |
+|---------|--------------|
+| `CACHE` | `416c5c2ebe074a36a708c370b8bdf5c0` (john-crystal-2026) |
+
+To create a namespace for a new site:
+```bash
+cd worker
+npx wrangler kv namespace create CACHE
+# Paste the returned id into wrangler.jsonc kv_namespaces[].id
+```
+
+### Worker API: `/cache/status`
+
+```
+GET /cache/status
+→ { "last_change": "2026-05-14T22:34:52.423Z" }   (no auth required)
+```
+
+Browsers poll this endpoint every 2 minutes (active-tab only). The timestamp is
+updated whenever KV is refreshed. Clients only re-fetch full data when
+`last_change` is newer than their cached `fetchedAt`.
+
+### KV Cache Keys
+
+| Key | Content |
+|-----|---------|
+| `photos:approved:<slug>` | `{ photos, total, updated_at }` — all approved photos |
+| `guestbook:approved:<slug>` | `{ entries, total, updated_at }` — all visible entries |
+| `cache:last_change` | ISO timestamp string — updated on every cache refresh |
+
+### Priming the Cache (post-deploy)
+
+After deploying to a new environment, seed the KV cache before the first cron fires:
+
+```bash
+# Option 1: use the script (requires dotenv in local node_modules)
+PRIME_WORKER_URL=https://worker.yourname.workers.dev \
+PRIME_WEDDING_SLUG=your-slug \
+node scripts/prime-kv-cache.mjs
+
+# Option 2: hit the endpoints directly (self-priming on KV miss)
+curl "https://worker.yourname.workers.dev/photos/approved?slug=your-slug&page=0&sort=newest"
+curl "https://worker.yourname.workers.dev/guestbook/approved?slug=your-slug&page=0"
+```
+
+Verify with:
+```bash
+curl "https://worker.yourname.workers.dev/cache/status"
+# → {"last_change":"<timestamp>"}
+```
+
+---
+
+## 11. Test Suite
 
 Tests live in `__tests__/pages/` and run with Jest + Testing Library.
 
@@ -323,7 +427,7 @@ Worker tests live in `worker/test/index.spec.ts` and use Vitest.
 
 ---
 
-## 11. Common Tasks
+## 12. Common Tasks
 
 ### Add a new palette
 
@@ -367,7 +471,7 @@ ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
 
 ---
 
-## 12. Dead Code & Stubs
+## 13. Dead Code & Stubs
 
 | File | Classification | Notes |
 |------|---------------|-------|
@@ -381,7 +485,7 @@ ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
 
 ---
 
-## 13. Debugging Runbook
+## 14. Debugging Runbook
 
 ### Gallery shows no photos
 
@@ -390,6 +494,17 @@ ALTER TABLE public.photos ADD COLUMN IF NOT EXISTS my_column text;
 3. If 401: Worker `CLIENT_PASSWORD` or `SITE_ORIGIN` is wrong.
 4. If 403: Geo/bot block. Test from a US IP. Check `CF-IPCountry` header.
 5. If 200 but empty: No approved photos in the DB for this `wedding_slug`.
+6. If gallery shows stale data: localStorage cache may be frozen. Clear it:
+   `localStorage.removeItem('gallery:photos')` in DevTools console, then refresh.
+
+### Gallery / guestbook stuck on blank screen (post-event mode)
+
+1. The `DisplayNameGate` may have been dismissed but `localStorage` was cleared.
+   Check `localStorage.getItem('wedding_display_name')` — if null, the gate will show.
+2. KV cache miss is causing a slow cold Neon query. Check Worker logs:
+   `wrangler tail` — look for `X-Cache: MISS` responses.
+3. `/cache/status` returns `{"last_change":null}` — KV was never primed.
+   Run the cache priming steps in [Post-Event Mode & KV Cache](#10-post-event-mode--kv-cache).
 
 ### Photo upload fails silently
 

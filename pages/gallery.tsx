@@ -8,10 +8,26 @@
 // Love reactions are sent via POST /photos/react and deduplicated server-side
 // using a SHA-256 hash of (photo_id + IP address). localStorage tracks already-
 // loved photo IDs on the client to persist the heart state across page reloads.
-import { useEffect, useMemo, useState } from 'react';
+//
+// Post-event caching:
+//   - On mount: load from localStorage cache if < 2 min old.
+//   - Poll GET /cache/status every 2 min (active tab only).
+//   - Only fetch fresh data from the Worker if last_change timestamp advanced.
+//   - Worker serves from KV, so Neon stays cold between scheduled refreshes.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePalette } from '../context/PaletteContext';
 import Gallery, { type Photo } from '../components/Gallery';
+import DisplayNameGate from '../components/DisplayNameGate';
 import { getWeddingSlug } from '../lib/supabase';
+import {
+  getCached,
+  setCached,
+  shouldRefresh,
+  getDisplayName,
+  POLL_INTERVAL_MS,
+} from '../lib/contentCache';
+
+const GALLERY_CACHE_KEY = 'gallery:photos';
 
 type WorkerPhoto = {
   id?: string | null;
@@ -67,7 +83,10 @@ export default function GalleryPage() {
   const [sortOrder, setSortOrder] = useState<'newest' | 'popular'>('newest');
   const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
+  // Display name gate: null = checking, '' = not set (show gate), string = ready
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const PER_PAGE = 50;
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const workerBaseUrl = useMemo(
     () => cleanBaseUrl(process.env.NEXT_PUBLIC_WORKER_BASE_URL || ''),
@@ -76,51 +95,94 @@ export default function GalleryPage() {
 
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
 
+  // Check localStorage for a stored display name on first render.
   useEffect(() => {
-    if (!workerBaseUrl) {
-      return;
+    setDisplayName(getDisplayName() ?? '');
+  }, []);
+
+  const fetchPhotos = useCallback(async (force = false) => {
+    if (!workerBaseUrl) return;
+
+    const cacheEntry = getCached<{ photos: WorkerPhoto[]; total: number }>(GALLERY_CACHE_KEY);
+
+    // Use cached data immediately if available (prevents flash of empty state).
+    if (cacheEntry?.data && !force) {
+      const mapped = (cacheEntry.data.photos || [])
+        .map(toGalleryPhoto)
+        .filter((item): item is Photo => Boolean(item));
+      setPhotos(mapped);
+      setTotal(cacheEntry.data.total ?? 0);
     }
 
-    let active = true;
-    const load = async () => {
-      // Show loading state when navigating pages (keep old photos until new set arrives).
-      try {
-        const weddingSlug = getWeddingSlug();
-        const params = new URLSearchParams({
-          wedding_slug: weddingSlug,
-          sort: sortOrder,
-          page: String(page),
-          per_page: String(PER_PAGE),
-        });
-        const response = await fetch(`${workerBaseUrl}/photos/approved?${params}`);
-        const payload = (await response.json()) as WorkerResponse<WorkerPhoto[]>;
-        if (!response.ok || payload.error) {
-          throw new Error(payload.error || `Failed to load gallery (${response.status})`);
-        }
+    // Decide whether a network fetch is warranted.
+    const needsRefresh = force || await shouldRefresh(workerBaseUrl, cacheEntry);
+    if (!needsRefresh) return;
 
-        if (!active) {
-          return;
-        }
-
-        const mapped = (payload.data || [])
-          .map(toGalleryPhoto)
-          .filter((item): item is Photo => Boolean(item));
-
-        setPhotos(mapped);
-        setTotal(payload.total ?? 0);
-      } catch (error) {
-        console.error('Gallery load failed:', error);
-        if (active) {
-          setPhotos([]);
-        }
+    try {
+      const weddingSlug = getWeddingSlug();
+      const params = new URLSearchParams({
+        wedding_slug: weddingSlug,
+        sort: sortOrder,
+        page: String(page),
+        per_page: String(PER_PAGE),
+      });
+      const response = await fetch(`${workerBaseUrl}/photos/approved?${params}`);
+      const payload = (await response.json()) as WorkerResponse<WorkerPhoto[]>;
+      if (!response.ok || payload.error) {
+        throw new Error(payload.error || `Failed to load gallery (${response.status})`);
       }
-    };
 
-    load();
-    return () => {
-      active = false;
-    };
+      const fresh = payload.data || [];
+      const mapped = fresh.map(toGalleryPhoto).filter((item): item is Photo => Boolean(item));
+      setPhotos(mapped);
+      setTotal(payload.total ?? 0);
+
+      // Cache the raw Worker data (not the mapped Photo objects) so
+      // a page refresh can serve from localStorage without a network call.
+      setCached(GALLERY_CACHE_KEY, { photos: fresh, total: payload.total ?? 0 }, null);
+    } catch (error) {
+      console.error('Gallery load failed:', error);
+      if (!photos) setPhotos([]); // only blank out if we have nothing to show
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workerBaseUrl, sortOrder, page]);
+
+  // Initial load and re-fetch when sort/page changes.
+  useEffect(() => {
+    if (!displayName) return; // wait for display name gate
+    fetchPhotos(true); // force refresh on explicit sort/page change
+  }, [displayName, sortOrder, page, fetchPhotos]);
+
+  // Active-tab polling: check every POLL_INTERVAL_MS, only if tab is visible.
+  useEffect(() => {
+    if (!displayName || !workerBaseUrl) return;
+
+    function startPoll() {
+      pollTimerRef.current = setInterval(() => {
+        if (!document.hidden) fetchPhotos();
+      }, POLL_INTERVAL_MS);
+    }
+
+    function handleVisibility() {
+      if (!document.hidden) fetchPhotos(); // immediate check on tab focus
+    }
+
+    startPoll();
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [displayName, workerBaseUrl, fetchPhotos]);
+
+  // Show gate while we determine the display name (avoids flash).
+  if (displayName === null) return null;
+
+  // Show the display name gate if name is not yet set.
+  if (displayName === '') {
+    return <DisplayNameGate onReady={(name) => setDisplayName(name)} />;
+  }
   
   return (
     <div className="gallery-page">

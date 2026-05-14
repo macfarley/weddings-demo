@@ -10,6 +10,12 @@ type WorkerEnv = {
 	SLACK_WEBHOOK_URL?: string;
 	RESTRICT_TO_MIDWEST?: string;
 	UPLOADTHING_TOKEN?: string;
+	// KV namespace for serving cached data without waking Neon.
+	// Binding name must match wrangler.jsonc → kv_namespaces[].binding
+	CACHE?: KVNamespace;
+	// Optional: the active wedding slug, used by the scheduled cache refresh.
+	// Set this as a secret/var: npx wrangler secret put WEDDING_SLUG
+	WEDDING_SLUG?: string;
 };
 
 // ---------------------------------------------------------------------------
@@ -45,6 +51,108 @@ const CLOUD_ASNS = new Set([
 
 // Midwest + adjacent US states allowed when RESTRICT_TO_MIDWEST=true.
 const MIDWEST_STATES = new Set(['OH', 'IN', 'MI', 'KY', 'PA', 'WI', 'IL', 'MN', 'MO', 'IA', 'WV', 'TN', 'VA']);
+
+// ---------------------------------------------------------------------------
+// KV cache helpers
+// Neon only wakes on scheduled writes; all reads come from KV.
+// Keys are scoped by wedding_slug to support multi-tenant deployments.
+// ---------------------------------------------------------------------------
+
+const KV_LAST_CHANGE_KEY = 'cache:last_change';
+
+function kvPhotosKey(weddingSlug: string): string {
+	return `photos:approved:${weddingSlug || 'all'}`;
+}
+
+function kvGuestbookKey(weddingSlug: string): string {
+	return `guestbook:approved:${weddingSlug || 'all'}`;
+}
+
+// Shape stored in KV for the photos cache.
+interface PhotosKvCache {
+	photos: Array<Record<string, unknown>>;
+	total: number;
+	updated_at: string;
+}
+
+// Shape stored in KV for the guestbook cache.
+interface GuestbookKvCache {
+	entries: Array<Record<string, unknown>>;
+	total: number;
+	updated_at: string;
+}
+
+// Bump the global last-change timestamp so clients know to refetch.
+// Called after every successful write (approve/reject/delete) and after
+// each scheduled cache refresh.  Fails silently so writes are never blocked.
+async function bumpLastChange(env: WorkerEnv): Promise<void> {
+	if (!env.CACHE) return;
+	try {
+		await env.CACHE.put(KV_LAST_CHANGE_KEY, new Date().toISOString());
+	} catch {
+		// fail silently
+	}
+}
+
+// Read all approved photos from Neon and write them to KV.
+// Called by the scheduled cron.  Gracefully no-ops when CACHE is unbound.
+async function refreshPhotosCache(env: WorkerEnv): Promise<void> {
+	if (!env.CACHE) return;
+	const weddingSlug = (env.WEDDING_SLUG || '').trim();
+	try {
+		const sql = getDb(env);
+		type PhotoRow = {
+			id: string; wedding_slug?: string | null; storage_path: string;
+			file_url?: string | null; label_raw?: string | null; label_slug?: string | null;
+			original_filename?: string | null; uploader_name?: string | null;
+			caption?: string | null; created_at: string; status: string;
+			is_visible: boolean; love_count?: number | null;
+		};
+		const rows: PhotoRow[] = weddingSlug
+			? await sql`SELECT id, wedding_slug, storage_path, file_url, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible, love_count FROM photos WHERE status='approved' AND is_visible=true AND wedding_slug=${weddingSlug} ORDER BY created_at DESC LIMIT 1000` as PhotoRow[]
+			: await sql`SELECT id, wedding_slug, storage_path, file_url, label_raw, label_slug, original_filename, uploader_name, caption, created_at, status, is_visible, love_count FROM photos WHERE status='approved' AND is_visible=true ORDER BY created_at DESC LIMIT 1000` as PhotoRow[];
+
+		const mapped = rows.map((row) => {
+			const fileUrl = row.file_url?.trim() || null;
+			const slug = toDownloadSlug(row);
+			const downloadUrl = fileUrl ? `${fileUrl}?filename=${encodeURIComponent(slug + '.jpg')}` : null;
+			return { ...row, filename: getFilename(row.storage_path), image_url: fileUrl, view_url: fileUrl, download_url: downloadUrl };
+		});
+
+		const cache: PhotosKvCache = { photos: mapped, total: mapped.length, updated_at: new Date().toISOString() };
+		await env.CACHE.put(kvPhotosKey(weddingSlug), JSON.stringify(cache));
+	} catch {
+		// fail silently — cache miss will fall through to DB
+	}
+}
+
+// Read all visible guestbook entries from Neon and write them to KV.
+async function refreshGuestbookCache(env: WorkerEnv): Promise<void> {
+	if (!env.CACHE) return;
+	const weddingSlug = (env.WEDDING_SLUG || '').trim();
+	try {
+		const sql = getDb(env);
+		type GbRow = {
+			id: string; wedding_slug?: string | null; display_name?: string | null;
+			family_name?: string | null; message: string;
+			side?: 'bride' | 'groom' | null; created_at: string;
+		};
+		const rows: GbRow[] = weddingSlug
+			? await sql`SELECT id, wedding_slug, display_name, family_name, message, side, created_at FROM guestbook_entries WHERE is_visible=true AND wedding_slug=${weddingSlug} ORDER BY created_at DESC LIMIT 500` as GbRow[]
+			: await sql`SELECT id, wedding_slug, display_name, family_name, message, side, created_at FROM guestbook_entries WHERE is_visible=true ORDER BY created_at DESC LIMIT 500` as GbRow[];
+
+		const cache: GuestbookKvCache = { entries: rows, total: rows.length, updated_at: new Date().toISOString() };
+		await env.CACHE.put(kvGuestbookKey(weddingSlug), JSON.stringify(cache));
+	} catch {
+		// fail silently
+	}
+}
+
+// Refresh both caches and bump last_change.  Called from the scheduled cron.
+async function refreshAllCaches(env: WorkerEnv): Promise<void> {
+	await Promise.all([refreshPhotosCache(env), refreshGuestbookCache(env)]);
+	await bumpLastChange(env);
+}
 
 // ---------------------------------------------------------------------------
 // In-memory rate limiter (per CF-Connecting-IP, per Worker isolate)
@@ -108,17 +216,15 @@ const CLIENT_ROUTES = new Set([
 export default {
 	async scheduled(event: ScheduledController, env: WorkerEnv): Promise<void> {
 		if (event.cron === '*/2 * * * *') {
-			// Auto-moderate pending photos every 2 minutes.
+			// Auto-moderate pending photos and refresh the KV cache every 2 minutes.
+			// This is the ONLY time Neon is queried for read data — all HTTP reads
+			// come from KV.  Removing the daily keepalive SELECT 1 lets Neon stay
+			// cold between writes, which is the main compute saving.
 			await autoModeratePending(env);
+			await refreshAllCaches(env);
 		} else if (event.cron === '0 10 * * 0') {
 			// Weekly egress + activity report — Sunday 10:00 UTC.
 			await sendWeeklyReport(env);
-		} else {
-			// Daily keep-alive: fire a cheap query so the connection pool stays warm.
-			try {
-				const sql = getDb(env);
-				await sql`SELECT 1`;
-			} catch { /* fail silently */ }
 		}
 	},
 
@@ -218,6 +324,15 @@ export default {
 						ok: Boolean(env.DATABASE_URL),
 						db: Boolean(env.DATABASE_URL),
 					}));
+				// Returns the last-change timestamp from KV so clients can decide
+				// whether to refetch full data.  Pure KV read — never touches Neon.
+				case 'GET /cache/status': {
+					const lastChange = env.CACHE ? await env.CACHE.get(KV_LAST_CHANGE_KEY) : null;
+					return withCors(request, env, new Response(JSON.stringify({ last_change: lastChange }), {
+						status: 200,
+						headers: { 'content-type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' },
+					}));
+				}
 				case 'GET /auth/role':
 					return withCors(request, env, json({
 						role: isAdminRequest(request, env) ? 'admin' : 'client',
@@ -440,6 +555,32 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 	const perPage = Math.min(100, Math.max(1, parseInt(url.searchParams.get('per_page') || '50', 10) || 50));
 	const offset = page * perPage;
 
+	// --- KV cache check ---
+	// Serve from KV when available.  Neon is only hit on a cold KV miss.
+	if (env.CACHE) {
+		const key = kvPhotosKey(weddingSlug);
+		const cached = await env.CACHE.get(key, 'json') as PhotosKvCache | null;
+		if (cached?.photos?.length) {
+			let photos = cached.photos as Array<Record<string, unknown> & { created_at: string; love_count?: number | null }>;
+			if (sort === 'popular') {
+				photos = [...photos].sort((a, b) =>
+					((b.love_count ?? 0) - (a.love_count ?? 0)) ||
+					(new Date(b.created_at).getTime() - new Date(a.created_at).getTime()),
+				);
+			}
+			const paginated = photos.slice(offset, offset + perPage);
+			return new Response(JSON.stringify({ data: paginated, total: cached.total, page, per_page: perPage }), {
+				status: 200,
+				headers: {
+					'content-type': 'application/json; charset=utf-8',
+					'Cache-Control': 'public, max-age=120, stale-while-revalidate=60',
+					'X-Cache': 'HIT',
+				},
+			});
+		}
+	}
+
+	// --- KV miss: query Neon and populate KV for next request ---
 	type PhotoRow = {
 		id: string; wedding_slug?: string | null; storage_path: string; file_url?: string | null;
 		label_raw?: string | null; label_slug?: string | null; original_filename?: string | null;
@@ -501,12 +642,21 @@ async function listApprovedPhotos(env: WorkerEnv, url: URL): Promise<Response> {
 			return { ...row, filename: getFilename(row.storage_path), image_url: fileUrl, view_url: fileUrl, download_url: downloadUrl };
 		});
 
+		// Populate KV so subsequent requests hit the cache.
+		// Use waitUntil-style fire-and-forget via Promise (no ctx available here).
+		if (env.CACHE && page === 0 && sort === 'newest') {
+			const kvCache: PhotosKvCache = { photos: mapped, total: mapped.length, updated_at: new Date().toISOString() };
+			env.CACHE.put(kvPhotosKey(weddingSlug), JSON.stringify(kvCache)).catch(() => {/* fail silently */});
+			env.CACHE.put(KV_LAST_CHANGE_KEY, new Date().toISOString()).catch(() => {/* fail silently */});
+		}
+
 		const body = JSON.stringify({ data: mapped, total, page, per_page: perPage });
 		return new Response(body, {
 			status: 200,
 			headers: {
 				'content-type': 'application/json; charset=utf-8',
 				'Cache-Control': 'public, max-age=120, stale-while-revalidate=60',
+				'X-Cache': 'MISS',
 			},
 		});
 	} catch (err) {
@@ -552,6 +702,7 @@ async function approvePhoto(request: Request, env: WorkerEnv): Promise<Response>
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE photos SET status='approved', is_visible=true, reviewed_at=${new Date().toISOString()} WHERE storage_path=${filename}`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -565,6 +716,7 @@ async function approvePhotoById(request: Request, env: WorkerEnv): Promise<Respo
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE photos SET status='approved', is_visible=true, reviewed_at=${new Date().toISOString()} WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -580,6 +732,7 @@ async function deletePhoto(request: Request, env: WorkerEnv): Promise<Response> 
 		await deleteUploadThingFiles([filename], env.UPLOADTHING_TOKEN);
 		const sql = getDb(env);
 		await sql`DELETE FROM photos WHERE storage_path=${filename}`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -593,6 +746,7 @@ async function rejectPhotoById(request: Request, env: WorkerEnv): Promise<Respon
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE photos SET status='rejected', is_visible=false, reviewed_at=${new Date().toISOString()} WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -610,6 +764,7 @@ async function purgePhotoById(request: Request, env: WorkerEnv): Promise<Respons
 
 		await deleteUploadThingFiles([photo.storage_path], env.UPLOADTHING_TOKEN);
 		await sql`DELETE FROM photos WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -638,12 +793,44 @@ async function listPendingGuestbook(env: WorkerEnv): Promise<Response> {
 
 async function listApprovedGuestbook(env: WorkerEnv, url: URL): Promise<Response> {
 	const weddingSlug = (url.searchParams.get('wedding_slug') || '').trim();
+
+	// --- KV cache check ---
+	if (env.CACHE) {
+		const key = kvGuestbookKey(weddingSlug);
+		const cached = await env.CACHE.get(key, 'json') as GuestbookKvCache | null;
+		if (cached?.entries) {
+			return new Response(JSON.stringify({ data: cached.entries }), {
+				status: 200,
+				headers: {
+					'content-type': 'application/json; charset=utf-8',
+					'Cache-Control': 'public, max-age=120, stale-while-revalidate=60',
+					'X-Cache': 'HIT',
+				},
+			});
+		}
+	}
+
+	// --- KV miss: query Neon ---
 	try {
 		const sql = getDb(env);
 		const data = weddingSlug
-			? await sql`SELECT * FROM guestbook_entries WHERE is_visible=true AND wedding_slug=${weddingSlug} ORDER BY created_at DESC LIMIT 500`
-			: await sql`SELECT * FROM guestbook_entries WHERE is_visible=true ORDER BY created_at DESC LIMIT 500`;
-		return json({ data }, 200);
+			? await sql`SELECT id, wedding_slug, display_name, family_name, message, side, created_at FROM guestbook_entries WHERE is_visible=true AND wedding_slug=${weddingSlug} ORDER BY created_at DESC LIMIT 500`
+			: await sql`SELECT id, wedding_slug, display_name, family_name, message, side, created_at FROM guestbook_entries WHERE is_visible=true ORDER BY created_at DESC LIMIT 500`;
+
+		// Populate KV so next request is served from cache.
+		if (env.CACHE) {
+			const kvCache: GuestbookKvCache = { entries: data as Array<Record<string, unknown>>, total: data.length, updated_at: new Date().toISOString() };
+			env.CACHE.put(kvGuestbookKey(weddingSlug), JSON.stringify(kvCache)).catch(() => {/* fail silently */});
+		}
+
+		return new Response(JSON.stringify({ data }), {
+			status: 200,
+			headers: {
+				'content-type': 'application/json; charset=utf-8',
+				'Cache-Control': 'public, max-age=120, stale-while-revalidate=60',
+				'X-Cache': 'MISS',
+			},
+		});
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
 	}
@@ -669,6 +856,7 @@ async function approveGuestbookById(request: Request, env: WorkerEnv): Promise<R
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE guestbook_entries SET is_visible=true WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -682,6 +870,7 @@ async function trashGuestbookById(request: Request, env: WorkerEnv): Promise<Res
 	try {
 		const sql = getDb(env);
 		await sql`UPDATE guestbook_entries SET is_visible=false WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);
@@ -695,6 +884,7 @@ async function deleteGuestbookById(request: Request, env: WorkerEnv): Promise<Re
 	try {
 		const sql = getDb(env);
 		await sql`DELETE FROM guestbook_entries WHERE id=${body.id}::uuid`;
+		await bumpLastChange(env);
 		return json({ data: { ok: true, id: body.id } }, 200);
 	} catch (err) {
 		return json({ error: err instanceof Error ? err.message : 'DB error' }, 500);

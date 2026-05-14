@@ -14,9 +14,20 @@
 		"nodejs_compat"
 	],
 	"triggers": {
-		"crons": ["0 9 * * *", "*/2 * * * *", "0 10 * * SUN"]
-		//          ^daily keepalive  ^auto-mod every 2 min  ^weekly report Sunday 10:00 UTC
-	}
+		"crons": [
+			"*/2 * * * *",
+			"0 10 * * SUN"
+		]
+		//          ^auto-mod + cache refresh every 2 min  ^weekly report Sunday 10:00 UTC
+		// Removed: "0 9 * * *" daily keepalive SELECT 1 — no longer needed with KV caching.
+		// Neon now stays cold between scheduled writes; reads are served from KV.
+	},
+	"kv_namespaces": [
+		{
+			"binding": "CACHE",
+			"id": "416c5c2ebe074a36a708c370b8bdf5c0"
+		}
+	]
 	/**
 	 * Smart Placement
 	 * https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
