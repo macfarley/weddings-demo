@@ -104,7 +104,14 @@ test('gallery page fires a request to the Worker', async ({ page }) => {
     }
   });
 
+  // Seed a display name so the DisplayNameGate doesn't block the gallery
+  // from loading — the gate shows when localStorage is empty (fresh context).
   await page.goto('/gallery');
+  await page.evaluate(() => {
+    const entry = { name: 'E2E Tester', storedAt: Date.now() };
+    localStorage.setItem('wedding_display_name', JSON.stringify(entry));
+  });
+  await page.reload();
   await page.waitForLoadState('networkidle', { timeout: 30_000 });
 
   const workerRequest = nonAssetRequests.find((url) =>
