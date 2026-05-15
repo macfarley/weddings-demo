@@ -216,11 +216,15 @@ const CLIENT_ROUTES = new Set([
 export default {
 	async scheduled(event: ScheduledController, env: WorkerEnv): Promise<void> {
 		if (event.cron === '*/2 * * * *') {
-			// Auto-moderate pending photos and refresh the KV cache every 2 minutes.
-			// This is the ONLY time Neon is queried for read data — all HTTP reads
-			// come from KV.  Removing the daily keepalive SELECT 1 lets Neon stay
-			// cold between writes, which is the main compute saving.
+			// Auto-moderate pending photos only.  KV cache is NOT refreshed here
+			// to stay within the free-tier 1,000 writes/day limit.
+			// KV is self-primed on first read (KV miss → Neon → KV write) and
+			// invalidated on every admin write via bumpLastChange().
+			// A full cache refresh runs once per day via the Sunday cron.
 			await autoModeratePending(env);
+		} else if (event.cron === '0 4 * * *') {
+			// Daily 4:00 UTC cache refresh — primes KV so morning visitors get a
+			// cache HIT instead of a cold Neon query.  3 KV writes/day max.
 			await refreshAllCaches(env);
 		} else if (event.cron === '0 10 * * 0') {
 			// Weekly egress + activity report — Sunday 10:00 UTC.
